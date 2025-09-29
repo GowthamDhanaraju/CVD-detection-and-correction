@@ -1,0 +1,14 @@
+{
+  "user_id": "user_1758602041269",
+  "name": "dwa",
+  "age": 1,
+  "gender": "Male",
+  "height": 2.0,
+  "weight": 3.0,
+  "medical_history": [
+    "adds"
+  ],
+  "medications": [],
+  "lifestyle": {},
+  "updated_at": "2025-09-23T10:04:10.461123"
+}
