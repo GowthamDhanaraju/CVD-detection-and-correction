@@ -1,62 +1,114 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  Alert,
   ScrollView,
+  TouchableOpacity,
+  Image,
+  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { StackNavigationProp } from '@react-navigation/stack';
-import ApiService from '../services/api';
-import { RootStackParamList, HealthCheck } from '../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { RootStackParamList, UserProfile, CVDResults } from '../types';
 
-type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
+type TabParamList = {
+  Home: undefined;
+  Profile: undefined;
+  ColorTest: undefined;
+  CameraView: { filter?: any };
+  History: undefined;
+};
+
+type HomeScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<TabParamList, 'Home'>,
+  StackNavigationProp<RootStackParamList>
+>;
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const [healthStatus, setHealthStatus] = useState<HealthCheck | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [lastTestResult, setLastTestResult] = useState<CVDResults | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAPIHealth();
+    loadUserData();
   }, []);
 
-  const checkAPIHealth = async () => {
+  const loadUserData = async () => {
     try {
-      const health = await ApiService.healthCheck();
-      setHealthStatus(health);
+      setLoading(true);
+      
+      // Load user profile
+      const profileData = await AsyncStorage.getItem('userProfile');
+      if (profileData) {
+        const parsedProfile = JSON.parse(profileData);
+        setProfile(parsedProfile);
+        
+        // Load latest test result
+        const resultsData = await AsyncStorage.getItem(`cvd_results_${parsedProfile.user_id}`);
+        if (resultsData) {
+          const results = JSON.parse(resultsData);
+          if (results.length > 0) {
+            // Get the most recent test
+            const sortedResults = results.sort((a: CVDResults, b: CVDResults) => 
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
+            setLastTestResult(sortedResults[0]);
+          }
+        }
+      }
     } catch (error) {
-      console.error('Health check failed:', error);
-      Alert.alert(
-        'Connection Error',
-        'Unable to connect to the server. Please check your internet connection.',
-        [{ text: 'OK' }]
-      );
+      console.error('Error loading user data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStartAssessment = () => {
-    navigation.navigate('Assessment');
+  const startNewTest = () => {
+    if (!profile) {
+      Alert.alert(
+        'Profile Required', 
+        'Please set up your profile first to take a color vision test.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Go to Profile', onPress: () => navigation.navigate('Profile') }
+        ]
+      );
+      return;
+    }
+    navigation.navigate('ColorTest');
   };
 
-  const handleViewProfile = () => {
-    navigation.navigate('Profile');
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'none': return '#4CAF50';
+      case 'mild': return '#FFC107';
+      case 'moderate': return '#FF9800';
+      case 'severe': return '#F44336';
+      default: return '#757575';
+    }
   };
 
-  const handleViewHistory = () => {
-    navigation.navigate('History');
+  const getSeverityDescription = (severity: string) => {
+    switch (severity) {
+      case 'none': return 'No color vision deficiency detected';
+      case 'mild': return 'Mild color vision deficiency';
+      case 'moderate': return 'Moderate color vision deficiency';
+      case 'severe': return 'Severe color vision deficiency';
+      default: return 'Unknown';
+    }
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Connecting to server...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -64,59 +116,107 @@ const HomeScreen: React.FC = () => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>CVD Health Monitor</Text>
+        <Text style={styles.title}>Color Vision Assessment</Text>
         <Text style={styles.subtitle}>
-          Your cardiovascular health companion
+          Advanced color vision deficiency detection and correction
         </Text>
-        
-        {healthStatus && (
-          <View style={styles.statusContainer}>
-            <Text style={styles.statusText}>
-              Server Status: {healthStatus.status}
-            </Text>
-            <Text style={styles.versionText}>
-              Version: {healthStatus.version}
-            </Text>
-          </View>
+      </View>
+
+      {/* Welcome Section */}
+      <View style={styles.welcomeSection}>
+        <Text style={styles.welcomeText}>
+          {profile ? `Welcome back, ${profile.name}!` : 'Welcome to Color Vision Assessment'}
+        </Text>
+        {!profile && (
+          <Text style={styles.setupText}>
+            Set up your profile to get started with personalized color vision testing.
+          </Text>
         )}
       </View>
 
-      <View style={styles.cardContainer}>
-        <TouchableOpacity
-          style={[styles.card, styles.primaryCard]}
-          onPress={handleStartAssessment}>
-          <Text style={styles.cardTitle}>Start Assessment</Text>
-          <Text style={styles.cardDescription}>
-            Begin a new cardiovascular risk assessment
+      {/* Last Test Result */}
+      {lastTestResult && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Latest Test Result</Text>
+          <View style={styles.resultContainer}>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Date:</Text>
+              <Text style={styles.resultValue}>
+                {new Date(lastTestResult.timestamp).toLocaleDateString()}
+              </Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Status:</Text>
+              <Text style={[
+                styles.resultValue, 
+                { color: getSeverityColor(lastTestResult.overall_severity) }
+              ]}>
+                {getSeverityDescription(lastTestResult.overall_severity)}
+              </Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Recommended Filter:</Text>
+              <Text style={styles.resultValue}>
+                {lastTestResult.recommended_filter ? 'Available' : 'None'}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Quick Actions */}
+      <View style={styles.actionsSection}>
+        <TouchableOpacity 
+          style={styles.primaryButton} 
+          onPress={startNewTest}
+        >
+          <Text style={styles.primaryButtonText}>
+            {lastTestResult ? 'Take New Test' : 'Start Color Vision Test'}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.card}
-          onPress={handleViewProfile}>
-          <Text style={styles.cardTitle}>Manage Profile</Text>
-          <Text style={styles.cardDescription}>
-            Update your personal and medical information
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.secondaryActions}>
+          <TouchableOpacity 
+            style={styles.secondaryButton}
+            onPress={() => navigation.navigate('History')}
+          >
+            <Text style={styles.secondaryButtonText}>View Test History</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.card}
-          onPress={handleViewHistory}>
-          <Text style={styles.cardTitle}>View History</Text>
-          <Text style={styles.cardDescription}>
-            Review your past assessments and results
-          </Text>
-        </TouchableOpacity>
+          {lastTestResult && lastTestResult.overall_severity !== 'none' && (
+            <TouchableOpacity 
+              style={styles.secondaryButton}
+              onPress={() => navigation.navigate('CameraView', { 
+                filter: lastTestResult.recommended_filter 
+              })}
+            >
+              <Text style={styles.secondaryButtonText}>Apply Color Filter</Text>
+            </TouchableOpacity>
+          )}
+
+          {!profile && (
+            <TouchableOpacity 
+              style={styles.secondaryButton}
+              onPress={() => navigation.navigate('Profile')}
+            >
+              <Text style={styles.secondaryButtonText}>Set Up Profile</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
+      {/* Information Section */}
       <View style={styles.infoSection}>
-        <Text style={styles.infoTitle}>About CVD Assessment</Text>
+        <Text style={styles.infoTitle}>About Color Vision Testing</Text>
         <Text style={styles.infoText}>
-          This application uses advanced AI models to assess your cardiovascular 
-          disease risk based on your personal health data. The assessment considers 
-          multiple factors including age, lifestyle, and medical history to provide 
-          personalized recommendations.
+          Our advanced Ishihara color vision test uses scientifically validated patterns 
+          to detect various types of color vision deficiencies. The test consists of 20 
+          carefully designed questions that assess your ability to distinguish colors.
+        </Text>
+        <Text style={styles.infoText}>
+          If a color vision deficiency is detected, our smart filter system can help 
+          correct your vision by automatically adjusting colors based on your specific 
+          test results.
         </Text>
       </View>
     </ScrollView>
@@ -135,100 +235,140 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 16,
     fontSize: 16,
     color: '#666',
   },
   header: {
     backgroundColor: '#007AFF',
-    padding: 30,
+    padding: 24,
+    paddingTop: 48,
     alignItems: 'center',
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#E3F2FD',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  welcomeSection: {
+    padding: 20,
+    backgroundColor: 'white',
+    marginTop: 16,
+    marginHorizontal: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  welcomeText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
     textAlign: 'center',
   },
-  statusContainer: {
-    marginTop: 15,
-    padding: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  statusText: {
-    color: 'white',
+  setupText: {
     fontSize: 14,
-    fontWeight: '500',
-  },
-  versionText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  cardContainer: {
-    padding: 20,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
   },
   card: {
     backgroundColor: 'white',
+    margin: 16,
     padding: 20,
-    marginBottom: 15,
     borderRadius: 12,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  primaryCard: {
-    backgroundColor: '#007AFF',
+    shadowRadius: 4,
+    elevation: 3,
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+  },
+  resultContainer: {
+    gap: 8,
+  },
+  resultRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  resultLabel: {
+    fontSize: 16,
+    color: '#666',
+  },
+  resultValue: {
+    fontSize: 16,
+    fontWeight: '500',
     color: '#333',
   },
-  cardDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
+  actionsSection: {
+    padding: 16,
+  },
+  primaryButton: {
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  primaryButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  secondaryActions: {
+    gap: 12,
+  },
+  secondaryButton: {
+    backgroundColor: 'white',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  secondaryButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
   infoSection: {
-    padding: 20,
-    margin: 20,
     backgroundColor: 'white',
+    margin: 16,
+    padding: 20,
     borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   infoTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
+    fontWeight: '600',
     color: '#333',
+    marginBottom: 12,
   },
   infoText: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 22,
+    lineHeight: 20,
+    marginBottom: 12,
   },
 });
-
-// Override styles for primary card text
-StyleSheet.flatten([
-  styles.primaryCard,
-  {
-    cardTitle: { color: 'white' },
-    cardDescription: { color: 'rgba(255, 255, 255, 0.8)' },
-  },
-]);
 
 export default HomeScreen;

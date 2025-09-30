@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserProfile, CVDPrediction } from '../types';
+import { UserProfile, CVDResults } from '../types';
 
 class LocalStorageManager {
   private static instance: LocalStorageManager;
@@ -47,54 +47,54 @@ class LocalStorageManager {
     }
   }
 
-  // Predictions Management
-  async savePrediction(prediction: CVDPrediction): Promise<void> {
+  // CVD Results Management
+  async saveCVDResult(result: CVDResults): Promise<void> {
     try {
-      const predictionWithId = {
-        ...prediction,
-        prediction_id: `pred_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      const resultWithId = {
+        ...result,
+        test_id: result.test_id || `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         saved_at: new Date().toISOString(),
       };
 
-      // Save individual prediction
+      // Save individual result
       await AsyncStorage.setItem(
-        `prediction_${predictionWithId.prediction_id}`,
-        JSON.stringify(predictionWithId)
+        `cvd_result_${resultWithId.test_id}`,
+        JSON.stringify(resultWithId)
       );
 
-      // Update predictions list
-      const existingPredictions = await this.getUserPredictions(prediction.user_id);
-      const updatedPredictions = [predictionWithId, ...existingPredictions];
+      // Update results list
+      const existingResults = await this.getUserCVDResults(result.user_id);
+      const updatedResults = [resultWithId, ...existingResults];
       
       await AsyncStorage.setItem(
-        `predictions_${prediction.user_id}`,
-        JSON.stringify(updatedPredictions)
+        `cvd_results_${result.user_id}`,
+        JSON.stringify(updatedResults)
       );
 
-      // Save latest prediction for quick access
-      await AsyncStorage.setItem('latest_prediction', JSON.stringify(predictionWithId));
+      // Save latest result for quick access
+      await AsyncStorage.setItem('latest_cvd_result', JSON.stringify(resultWithId));
     } catch (error) {
-      console.error('Error saving prediction:', error);
+      console.error('Error saving CVD result:', error);
       throw error;
     }
   }
 
-  async getUserPredictions(userId: string): Promise<CVDPrediction[]> {
+  async getUserCVDResults(userId: string): Promise<CVDResults[]> {
     try {
-      const predictionsData = await AsyncStorage.getItem(`predictions_${userId}`);
-      return predictionsData ? JSON.parse(predictionsData) : [];
+      const resultsData = await AsyncStorage.getItem(`cvd_results_${userId}`);
+      return resultsData ? JSON.parse(resultsData) : [];
     } catch (error) {
-      console.error('Error loading predictions:', error);
+      console.error('Error loading CVD results:', error);
       return [];
     }
   }
 
-  async getLatestPrediction(): Promise<CVDPrediction | null> {
+  async getLatestCVDResult(): Promise<CVDResults | null> {
     try {
-      const predictionData = await AsyncStorage.getItem('latest_prediction');
-      return predictionData ? JSON.parse(predictionData) : null;
+      const resultData = await AsyncStorage.getItem('latest_cvd_result');
+      return resultData ? JSON.parse(resultData) : null;
     } catch (error) {
-      console.error('Error loading latest prediction:', error);
+      console.error('Error loading latest CVD result:', error);
       return null;
     }
   }

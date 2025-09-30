@@ -2,14 +2,15 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import AssessmentScreen from '../screens/AssessmentScreen';
+import ColorTestScreen from '../screens/ColorTestScreen';
+import CameraViewScreen from '../screens/CameraViewScreen';
 import ResultsScreen from '../screens/ResultsScreen';
 import HistoryScreen from '../screens/HistoryScreen';
-import FeedbackScreen from '../screens/FeedbackScreen';
 
 import { RootStackParamList } from '../types';
 
@@ -23,15 +24,22 @@ function TabNavigator() {
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
+        tabBarStyle: {
+          paddingBottom: 5,
+          height: 60,
+        },
       }}>
       <Tab.Screen 
         name="Home" 
         component={HomeScreen}
         options={{
           title: 'Home',
-          tabBarIcon: ({ focused, color }) => (
-            // You can add icons here when react-native-vector-icons is properly configured
-            null
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons 
+              name={focused ? 'home' : 'home-outline'} 
+              size={size} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -40,20 +48,40 @@ function TabNavigator() {
         component={ProfileScreen}
         options={{
           title: 'Profile',
-          tabBarIcon: ({ focused, color }) => (
-            // You can add icons here
-            null
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons 
+              name={focused ? 'person' : 'person-outline'} 
+              size={size} 
+              color={color} 
+            />
           ),
         }}
       />
       <Tab.Screen 
-        name="Assessment" 
-        component={AssessmentScreen}
+        name="ColorTest" 
+        component={ColorTestScreen}
         options={{
-          title: 'Assessment',
-          tabBarIcon: ({ focused, color }) => (
-            // You can add icons here
-            null
+          title: 'Color Test',
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons 
+              name={focused ? 'eye' : 'eye-outline'} 
+              size={size} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="CameraView" 
+        component={CameraViewScreen}
+        options={{
+          title: 'Color Filter',
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons 
+              name={focused ? 'camera' : 'camera-outline'} 
+              size={size} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -62,9 +90,12 @@ function TabNavigator() {
         component={HistoryScreen}
         options={{
           title: 'History',
-          tabBarIcon: ({ focused, color }) => (
-            // You can add icons here
-            null
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons 
+              name={focused ? 'time' : 'time-outline'} 
+              size={size} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -77,19 +108,14 @@ export default function Navigation() {
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen 
-          name="Home" 
+          name="Main" 
           component={TabNavigator} 
           options={{ headerShown: false }}
         />
         <Stack.Screen 
           name="Results" 
           component={ResultsScreen}
-          options={{ title: 'Assessment Results' }}
-        />
-        <Stack.Screen 
-          name="Feedback" 
-          component={FeedbackScreen}
-          options={{ title: 'Feedback' }}
+          options={{ title: 'Test Results' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

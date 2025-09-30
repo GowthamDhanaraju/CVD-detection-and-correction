@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import ApiService from '../services/api';
+import apiService from '../services/api';
 import { UserProfile } from '../types';
 
 const ProfileScreen: React.FC = () => {
@@ -19,12 +19,10 @@ const ProfileScreen: React.FC = () => {
     name: '',
     age: 0,
     gender: '',
-    height: 0,
-    weight: 0,
-    medical_history: [],
+    email: '',
+    previous_tests: [],
   });
   const [loading, setLoading] = useState(false);
-  const [medicalHistory, setMedicalHistory] = useState('');
 
   useEffect(() => {
     loadProfile();
@@ -36,7 +34,6 @@ const ProfileScreen: React.FC = () => {
       if (savedProfile) {
         const parsedProfile = JSON.parse(savedProfile);
         setProfile(parsedProfile);
-        setMedicalHistory(parsedProfile.medical_history?.join(', ') || '');
       } else {
         // Generate a unique user ID if none exists
         const userId = `user_${Date.now()}`;
@@ -48,26 +45,19 @@ const ProfileScreen: React.FC = () => {
   };
 
   const saveProfile = async () => {
-    if (!profile.name || !profile.age || !profile.gender || !profile.height || !profile.weight) {
+    if (!profile.name || !profile.age || !profile.gender) {
       Alert.alert('Error', 'Please fill in all required fields.');
       return;
     }
 
     setLoading(true);
     try {
-      // Parse medical history
-      const historyArray = medicalHistory
-        .split(',')
-        .map(item => item.trim())
-        .filter(item => item.length > 0);
-
       const updatedProfile = {
         ...profile,
-        medical_history: historyArray,
       };
 
       // Save to backend
-      await ApiService.createUserProfile(updatedProfile);
+      await apiService.createUserProfile(updatedProfile);
 
       // Save locally
       await AsyncStorage.setItem('userProfile', JSON.stringify(updatedProfile));
@@ -143,45 +133,7 @@ const ProfileScreen: React.FC = () => {
           </View>
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Height (cm) *</Text>
-          <TextInput
-            style={styles.input}
-            value={profile.height.toString()}
-            onChangeText={(text) => updateField('height', parseFloat(text) || 0)}
-            placeholder="Enter your height in cm"
-            placeholderTextColor="#999"
-            keyboardType="numeric"
-          />
-        </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Weight (kg) *</Text>
-          <TextInput
-            style={styles.input}
-            value={profile.weight.toString()}
-            onChangeText={(text) => updateField('weight', parseFloat(text) || 0)}
-            placeholder="Enter your weight in kg"
-            placeholderTextColor="#999"
-            keyboardType="numeric"
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Medical History</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={medicalHistory}
-            onChangeText={setMedicalHistory}
-            placeholder="Enter conditions separated by commas (e.g., diabetes, hypertension)"
-            placeholderTextColor="#999"
-            multiline
-            numberOfLines={3}
-          />
-          <Text style={styles.helpText}>
-            Separate multiple conditions with commas
-          </Text>
-        </View>
 
         <TouchableOpacity
           style={[styles.saveButton, loading && styles.disabledButton]}

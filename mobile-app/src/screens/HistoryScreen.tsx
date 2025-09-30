@@ -8,25 +8,27 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Modal,
+  ScrollView,
+  Image,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/api';
-import { RootStackParamList, CVDPrediction, UserProfile } from '../types';
+import { RootStackParamList, CVDResults, UserProfile, TestQuestion } from '../types';
 
 type HistoryScreenNavigationProp = StackNavigationProp<RootStackParamList, 'History'>;
 
-interface HistoryItem extends CVDPrediction {
-  prediction_id: string;
-}
-
 const HistoryScreen: React.FC = () => {
   const navigation = useNavigation<HistoryScreenNavigationProp>();
-  const [predictions, setPredictions] = useState<HistoryItem[]>([]);
+  const [testResults, setTestResults] = useState<CVDResults[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [selectedTest, setSelectedTest] = useState<CVDResults | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [testQuestions, setTestQuestions] = useState<TestQuestion[]>([]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -38,44 +40,83 @@ const HistoryScreen: React.FC = () => {
     try {
       // Load user profile
       const savedProfile = await AsyncStorage.getItem('userProfile');
+      let userProfile = null;
       if (savedProfile) {
-        const userProfile = JSON.parse(savedProfile);
+        userProfile = JSON.parse(savedProfile);
         setProfile(userProfile);
-
-        try {
-          // Try to load from API first
-          const apiPredictions = await ApiService.getUserPredictions(userProfile.user_id);
-          const historyItems: HistoryItem[] = apiPredictions.map(pred => ({
-            ...pred,
-            prediction_id: pred.prediction_id || `pred_${Date.now()}_${Math.random()}`
-          }));
-          setPredictions(historyItems);
-        } catch (apiError) {
-          console.log('API load failed, loading from local storage');
-          // Fallback to local storage
-          await loadLocalHistory();
-        }
-      } else {
-        // No profile, load local history only
-        await loadLocalHistory();
+        console.log('Loaded user profile:', userProfile);
       }
+
+      // Load test results - prioritize user-specific storage
+      let results: CVDResults[] = [];
+      
+      // First try to get user-specific results
+      if (userProfile && userProfile.user_id) {
+        console.log('[History] Loading for user:', userProfile.user_id);
+        const userResults = await AsyncStorage.getItem(`cvd_results_${userProfile.user_id}`);
+        if (userResults) {
+          results = JSON.parse(userResults);
+          console.log('[History] Found user-specific results:', results.length);
+        }
+      }
+      
+      // If no user-specific results, try legacy storage
+      if (results.length === 0) {
+        const savedResults = await AsyncStorage.getItem('cvdTestResults');
+        console.log('Raw saved results:', savedResults);
+        
+        if (savedResults) {
+          results = JSON.parse(savedResults);
+          console.log('Parsed test results from legacy storage:', results);
+        }
+      }
+      
+      // Also check for single latest result format
+      if (results.length === 0) {
+        const latestResults = await AsyncStorage.getItem('latestTestResults');
+        if (latestResults) {
+          console.log('Found latest results format:', latestResults);
+          const latestResult = JSON.parse(latestResults);
+          results = [latestResult];
+        }
+      }
+      
+      // Sort by timestamp (newest first)
+      if (results.length > 0) {
+        results.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        console.log('[History] Found results:', results.length);
+      } else {
+        console.log('[History] No test results found in any storage');
+      }
+      
+      setTestResults(results);
+      
     } catch (error) {
       console.error('Error loading history:', error);
-      Alert.alert('Error', 'Failed to load assessment history.');
+      Alert.alert('Error', 'Failed to load test history.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const loadLocalHistory = async () => {
+  const loadTestQuestions = async (testId: string) => {
     try {
-      const localHistory = await AsyncStorage.getItem('assessmentHistory');
-      if (localHistory) {
-        setPredictions(JSON.parse(localHistory));
+      console.log('Loading test questions for test ID:', testId);
+      const savedQuestions = await AsyncStorage.getItem(`testQuestions_${testId}`);
+      console.log('Raw saved questions:', savedQuestions);
+      
+      if (savedQuestions) {
+        const questions = JSON.parse(savedQuestions);
+        console.log('Parsed test questions:', questions);
+        setTestQuestions(questions);
+      } else {
+        console.log('No test questions found for test ID:', testId);
+        setTestQuestions([]);
       }
     } catch (error) {
-      console.error('Error loading local history:', error);
+      console.error('Error loading test questions:', error);
+      setTestQuestions([]);
     }
   };
 
@@ -94,27 +135,60 @@ const HistoryScreen: React.FC = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const getRiskColor = (riskLevel: string): string => {
-    switch (riskLevel.toLowerCase()) {
-      case 'low':
+  const getSeverityColor = (severity: string): string => {
+    switch (severity.toLowerCase()) {
+      case 'none':
         return '#4CAF50';
-      case 'moderate':
+      case 'mild':
         return '#FF9800';
-      case 'high':
+      case 'moderate':
         return '#F44336';
+      case 'severe':
+        return '#D32F2F';
       default:
         return '#666';
     }
   };
 
-  const viewPredictionDetails = (prediction: HistoryItem) => {
-    navigation.navigate('Results', { prediction });
+  const getDominantDeficiency = (results: CVDResults): { type: string; score: number } => {
+    const scores = [
+      { type: 'Protanopia', score: results.protanopia },
+      { type: 'Deuteranopia', score: results.deuteranopia },
+      { type: 'Tritanopia', score: results.tritanopia },
+    ];
+    
+    return scores.reduce((max, current) => current.score > max.score ? current : max);
+  };
+
+  const viewTestDetails = async (result: CVDResults) => {
+    setSelectedTest(result);
+    await loadTestQuestions(result.test_id);
+    setShowDetailModal(true);
+  };
+
+  const getAnswerExplanation = (question: TestQuestion, userResponse: boolean, correctAnswer: boolean): string => {
+    const isCorrect = userResponse === correctAnswer;
+    const deficiencyType = question.filter_type;
+    
+    if (isCorrect) {
+      if (correctAnswer) {
+        return `✓ Correct! The images were indeed the same. This suggests normal color discrimination for ${deficiencyType} patterns.`;
+      } else {
+        return `✓ Correct! You successfully detected the difference between these images, showing good color vision for ${deficiencyType} patterns.`;
+      }
+    } else {
+      if (correctAnswer && !userResponse) {
+        return `✗ The images were actually the same, but you saw them as different. This could indicate some sensitivity in ${deficiencyType} color discrimination.`;
+      } else {
+        return `✗ These images were different, but you perceived them as the same. This suggests difficulty distinguishing ${deficiencyType} color patterns, which may indicate ${deficiencyType}.`;
+      }
+    }
   };
 
   const clearHistory = () => {
     Alert.alert(
       'Clear History',
-      'Are you sure you want to clear all assessment history? This action cannot be undone.',
+      'Are you sure you want to clear all test history? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -122,11 +196,35 @@ const HistoryScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await AsyncStorage.removeItem('assessmentHistory');
-              setPredictions([]);
-              Alert.alert('Success', 'Assessment history cleared.');
+              // Clear the old format storage
+              await AsyncStorage.removeItem('cvdTestResults');
+              
+              // Get current user profile to clear user-specific data
+              const currentProfile = await AsyncStorage.getItem('userProfile');
+              if (currentProfile) {
+                const profile = JSON.parse(currentProfile);
+                // Clear user-specific results
+                await AsyncStorage.removeItem(`cvd_results_${profile.user_id}`);
+              }
+              
+              // Clear latest results
+              await AsyncStorage.removeItem('latestTestResults');
+              await AsyncStorage.removeItem('latest_cvd_result');
+              
+              // Clear individual test questions
+              for (const result of testResults) {
+                await AsyncStorage.removeItem(`testQuestions_${result.test_id}`);
+              }
+              
+              // Clear any saved filter settings
+              await AsyncStorage.removeItem('userFilterSettings');
+              
+              // Update UI
+              setTestResults([]);
+              Alert.alert('Success', 'Test history cleared successfully.');
             } catch (error) {
-              Alert.alert('Error', 'Failed to clear history.');
+              console.error('Error clearing history:', error);
+              Alert.alert('Error', 'Failed to clear history. Please try again.');
             }
           },
         },
@@ -134,49 +232,141 @@ const HistoryScreen: React.FC = () => {
     );
   };
 
-  const renderHistoryItem = ({ item }: { item: HistoryItem }) => (
-    <TouchableOpacity
-      style={styles.historyItem}
-      onPress={() => viewPredictionDetails(item)}>
-      <View style={styles.itemHeader}>
-        <Text style={styles.itemDate}>{formatDate(item.timestamp)}</Text>
-        <Text style={styles.itemTime}>{formatTime(item.timestamp)}</Text>
-      </View>
-      
-      <View style={styles.itemContent}>
-        <View style={styles.riskScoreContainer}>
-          <Text style={styles.riskScoreLabel}>Risk Score</Text>
-          <Text style={[styles.riskScore, { color: getRiskColor(item.risk_level) }]}>
-            {item.risk_score}%
-          </Text>
+  const renderHistoryItem = ({ item }: { item: CVDResults }) => {
+    const dominant = getDominantDeficiency(item);
+    
+    return (
+      <TouchableOpacity
+        style={styles.historyItem}
+        onPress={() => viewTestDetails(item)}>
+        <View style={styles.itemHeader}>
+          <Text style={styles.itemDate}>{formatDate(item.timestamp)}</Text>
+          <Text style={styles.itemTime}>{formatTime(item.timestamp)}</Text>
         </View>
         
-        <View style={styles.riskLevelContainer}>
-          <Text style={[styles.riskLevel, { color: getRiskColor(item.risk_level) }]}>
-            {item.risk_level.toUpperCase()} RISK
-          </Text>
+        <View style={styles.itemContent}>
+          <View style={styles.severityContainer}>
+            <Text style={styles.severityLabel}>Overall Severity</Text>
+            <Text style={[styles.severity, { color: getSeverityColor(item.overall_severity) }]}>
+              {item.overall_severity.toUpperCase()}
+            </Text>
+          </View>
+          
+          <View style={styles.dominantTypeContainer}>
+            <Text style={styles.dominantTypeLabel}>Dominant Type</Text>
+            <Text style={styles.dominantType}>{dominant.type}</Text>
+            <Text style={styles.dominantScore}>{(dominant.score * 100).toFixed(0)}%</Text>
+          </View>
         </View>
+        
+        <View style={styles.itemFooter}>
+          <Text style={styles.scoresText}>
+            P: {(item.protanopia * 100).toFixed(0)}% | D: {(item.deuteranopia * 100).toFixed(0)}% | T: {(item.tritanopia * 100).toFixed(0)}%
+          </Text>
+          <Text style={styles.viewDetailsText}>Tap to view details →</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderDetailModal = () => (
+    <Modal
+      visible={showDetailModal}
+      animationType="slide"
+      presentationStyle="pageSheet">
+      <View style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>Test Results Detail</Text>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setShowDetailModal(false)}>
+            <Text style={styles.closeButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {selectedTest && (
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.resultsSummary}>
+              <Text style={styles.resultsTitle}>Color Vision Assessment</Text>
+              <Text style={styles.resultsDate}>{formatDate(selectedTest.timestamp)} at {formatTime(selectedTest.timestamp)}</Text>
+              
+              <View style={styles.scoresGrid}>
+                <View style={styles.scoreItem}>
+                  <Text style={styles.scoreLabel}>Protanopia (Red-blind)</Text>
+                  <Text style={styles.scoreValue}>{(selectedTest.protanopia * 100).toFixed(0)}%</Text>
+                </View>
+                <View style={styles.scoreItem}>
+                  <Text style={styles.scoreLabel}>Deuteranopia (Green-blind)</Text>
+                  <Text style={styles.scoreValue}>{(selectedTest.deuteranopia * 100).toFixed(0)}%</Text>
+                </View>
+                <View style={styles.scoreItem}>
+                  <Text style={styles.scoreLabel}>Tritanopia (Blue-blind)</Text>
+                  <Text style={styles.scoreValue}>{(selectedTest.tritanopia * 100).toFixed(0)}%</Text>
+                </View>
+              </View>
+              
+              <View style={styles.overallResult}>
+                <Text style={styles.overallLabel}>Overall Severity</Text>
+                <Text style={[styles.overallValue, { color: getSeverityColor(selectedTest.overall_severity) }]}>
+                  {selectedTest.overall_severity.toUpperCase()}
+                </Text>
+              </View>
+            </View>
+            
+            {testQuestions.length > 0 && (
+              <View style={styles.questionsSection}>
+                <Text style={styles.sectionTitle}>Question by Question Analysis</Text>
+                {testQuestions.map((question, index) => (
+                  <View key={question.question_id} style={styles.questionItem}>
+                    <Text style={styles.questionNumber}>Question {index + 1}</Text>
+                    <Text style={styles.questionType}>Testing: {question.filter_type}</Text>
+                    
+                    <View style={styles.imageContainer}>
+                      <View style={styles.imageGroup}>
+                        <Text style={styles.imageLabel}>Original Image</Text>
+                        <Image 
+                          source={{ uri: question.image_original }} 
+                          style={styles.testImage}
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <View style={styles.imageGroup}>
+                        <Text style={styles.imageLabel}>Filtered Image</Text>
+                        <Image 
+                          source={{ uri: question.image_filtered }} 
+                          style={styles.testImage}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    </View>
+                    
+                    <View style={styles.answerAnalysis}>
+                      <Text style={styles.answerLabel}>Your Answer: {question.user_response ? 'Same' : 'Different'}</Text>
+                      <Text style={styles.correctLabel}>Correct Answer: {question.correct_answer ? 'Same' : 'Different'}</Text>
+                      <Text style={styles.explanation}>
+                        {getAnswerExplanation(question, question.user_response || false, question.correct_answer)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        )}
       </View>
-      
-      <View style={styles.itemFooter}>
-        <Text style={styles.confidenceText}>
-          Confidence: {(item.confidence * 100).toFixed(0)}%
-        </Text>
-        <Text style={styles.viewDetailsText}>Tap to view details →</Text>
-      </View>
-    </TouchableOpacity>
+    </Modal>
   );
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyStateTitle}>No Assessments Yet</Text>
+      <Text style={styles.emptyStateTitle}>No Color Vision Tests Yet</Text>
       <Text style={styles.emptyStateText}>
-        Start your first cardiovascular risk assessment to see your history here.
+        Take your first color vision test to see your results and history here.
       </Text>
       <TouchableOpacity
-        style={styles.startAssessmentButton}
-        onPress={() => navigation.navigate('Assessment')}>
-        <Text style={styles.startAssessmentButtonText}>Start Assessment</Text>
+        style={styles.startTestButton}
+        onPress={() => navigation.navigate('ColorTest')}>
+        <Text style={styles.startTestButtonText}>Start Color Vision Test</Text>
       </TouchableOpacity>
     </View>
   );
@@ -193,13 +383,13 @@ const HistoryScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Assessment History</Text>
+        <Text style={styles.title}>Test History</Text>
         {profile && (
           <Text style={styles.subtitle}>{profile.name}</Text>
         )}
       </View>
 
-      {predictions.length > 0 && (
+      {testResults.length > 0 && (
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.clearButton}
@@ -210,9 +400,9 @@ const HistoryScreen: React.FC = () => {
       )}
 
       <FlatList
-        data={predictions}
+        data={testResults}
         renderItem={renderHistoryItem}
-        keyExtractor={(item) => item.prediction_id || item.timestamp}
+        keyExtractor={(item) => item.test_id}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={renderEmptyState}
         refreshControl={
@@ -224,6 +414,8 @@ const HistoryScreen: React.FC = () => {
         }
         showsVerticalScrollIndicator={false}
       />
+      
+      {renderDetailModal()}
     </View>
   );
 };
@@ -309,31 +501,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
   },
-  riskScoreContainer: {
+  severityContainer: {
     alignItems: 'center',
   },
-  riskScoreLabel: {
+  severityLabel: {
     fontSize: 12,
     color: '#666',
     marginBottom: 4,
   },
-  riskScore: {
-    fontSize: 24,
+  severity: {
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  riskLevelContainer: {
+  dominantTypeContainer: {
     alignItems: 'center',
   },
-  riskLevel: {
+  dominantTypeLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  dominantType: {
     fontSize: 14,
     fontWeight: 'bold',
+    color: '#333',
+  },
+  dominantScore: {
+    fontSize: 12,
+    color: '#666',
   },
   itemFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  confidenceText: {
+  scoresText: {
     fontSize: 12,
     color: '#666',
   },
@@ -362,16 +564,181 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 30,
   },
-  startAssessmentButton: {
+  startTestButton: {
     backgroundColor: '#007AFF',
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 8,
   },
-  startAssessmentButtonText: {
+  startTestButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  modalHeader: {
+    backgroundColor: '#007AFF',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 50,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  closeButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  closeButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalContent: {
+    flex: 1,
+  },
+  resultsSummary: {
+    backgroundColor: 'white',
+    margin: 20,
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  resultsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  resultsDate: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+  },
+  scoresGrid: {
+    marginBottom: 20,
+  },
+  scoreItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  scoreLabel: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+  },
+  scoreValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  overallResult: {
+    alignItems: 'center',
+    paddingTop: 15,
+    borderTopWidth: 2,
+    borderTopColor: '#f0f0f0',
+  },
+  overallLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  overallValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  questionsSection: {
+    margin: 20,
+    marginTop: 0,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  questionItem: {
+    backgroundColor: 'white',
+    padding: 15,
+    marginBottom: 15,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  questionNumber: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  questionType: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 15,
+  },
+  imageContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  imageGroup: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  imageLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 5,
+  },
+  testImage: {
+    width: '100%',
+    height: 100,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  answerAnalysis: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+  },
+  answerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  correctLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  explanation: {
+    fontSize: 13,
+    color: '#555',
+    lineHeight: 18,
   },
 });
 

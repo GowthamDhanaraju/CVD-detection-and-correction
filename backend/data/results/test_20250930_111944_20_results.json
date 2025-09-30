@@ -1,0 +1,30 @@
+{
+  "test_id": "test_20250930_111944_20",
+  "user_id": "unknown",
+  "protanopia": 0.75,
+  "deuteranopia": 0.92,
+  "tritanopia": 0.81,
+  "no_blindness": 0.0,
+  "overall_severity": "severe",
+  "recommended_filter": {
+    "protanopia_correction": 0.6000000000000001,
+    "deuteranopia_correction": 0.7360000000000001,
+    "tritanopia_correction": 0.6480000000000001,
+    "brightness_adjustment": 1.092,
+    "contrast_adjustment": 1.138,
+    "saturation_adjustment": 1.184,
+    "gan_recommendations": {
+      "primary_cvd_type": "deuteranopia",
+      "filter_strength": "strong",
+      "protanopia_severity": 0.75,
+      "deuteranopia_severity": 0.92,
+      "tritanopia_severity": 0.81,
+      "max_severity": 0.92,
+      "recommended_filter": "GAN-based deuteranopia correction (strong)",
+      "description": "AI-generated color restoration filter for deuteranopia with strong intensity"
+    },
+    "filter_method": "GAN+Traditional",
+    "ai_enhanced": true
+  },
+  "timestamp": "2025-09-30T11:20:01.417355"
+}

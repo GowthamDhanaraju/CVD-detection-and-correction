@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList, CVDPrediction } from '../types';
+import { RootStackParamList, CVDResults } from '../types';
 
 type ResultsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Results'>;
 type ResultsScreenRouteProp = RouteProp<RootStackParamList, 'Results'>;
@@ -17,28 +17,32 @@ type ResultsScreenRouteProp = RouteProp<RootStackParamList, 'Results'>;
 const ResultsScreen: React.FC = () => {
   const navigation = useNavigation<ResultsScreenNavigationProp>();
   const route = useRoute<ResultsScreenRouteProp>();
-  const { prediction } = route.params;
+  const { results } = route.params;
 
-  const getRiskColor = (riskLevel: string): string => {
-    switch (riskLevel.toLowerCase()) {
-      case 'low':
+  const getSeverityColor = (severity: string): string => {
+    switch (severity.toLowerCase()) {
+      case 'none':
         return '#4CAF50';
+      case 'mild':
+        return '#FFC107';
       case 'moderate':
         return '#FF9800';
-      case 'high':
+      case 'severe':
         return '#F44336';
       default:
         return '#666';
     }
   };
 
-  const getRiskIcon = (riskLevel: string): string => {
-    switch (riskLevel.toLowerCase()) {
-      case 'low':
+  const getSeverityIcon = (severity: string): string => {
+    switch (severity.toLowerCase()) {
+      case 'none':
         return '✓';
+      case 'mild':
+        return '○';
       case 'moderate':
         return '⚠';
-      case 'high':
+      case 'severe':
         return '⚠';
       default:
         return '?';
@@ -46,15 +50,19 @@ const ResultsScreen: React.FC = () => {
   };
 
   const handleProvideFeedback = () => {
-    navigation.navigate('Feedback', { prediction });
+    navigation.navigate('Feedback' as any, { testId: results.test_id });
   };
 
-  const handleNewAssessment = () => {
-    navigation.navigate('Assessment');
+  const handleNewTest = () => {
+    navigation.navigate('ColorTest' as any);
   };
 
   const handleViewHistory = () => {
-    navigation.navigate('History');
+    navigation.navigate('History' as any);
+  };
+
+  const handleUseCameraFilter = () => {
+    navigation.navigate('CameraView', { filter: results.recommended_filter });
   };
 
   const formatDate = (dateString: string): string => {
@@ -62,110 +70,161 @@ const ResultsScreen: React.FC = () => {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const getPercentage = (score: number): number => {
+    return Math.round(score * 100);
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Assessment Results</Text>
+        <Text style={styles.title}>Color Vision Test Results</Text>
         <Text style={styles.subtitle}>
-          {formatDate(prediction.timestamp)}
+          {formatDate(results.timestamp)}
         </Text>
       </View>
 
       <View style={styles.content}>
-        {/* Risk Score Card */}
-        <View style={styles.riskCard}>
-          <View style={styles.riskHeader}>
-            <Text style={styles.riskTitle}>CVD Risk Assessment</Text>
-            <Text style={[styles.riskIcon, { color: getRiskColor(prediction.risk_level) }]}>
-              {getRiskIcon(prediction.risk_level)}
+        {/* Overall Severity Card */}
+        <View style={styles.severityCard}>
+          <View style={styles.severityHeader}>
+            <Text style={styles.severityTitle}>Overall Assessment</Text>
+            <Text style={[styles.severityIcon, { color: getSeverityColor(results.overall_severity) }]}>
+              {getSeverityIcon(results.overall_severity)}
             </Text>
           </View>
           
-          <View style={styles.riskScoreContainer}>
-            <Text style={styles.riskScoreLabel}>Risk Score</Text>
-            <Text style={[styles.riskScore, { color: getRiskColor(prediction.risk_level) }]}>
-              {prediction.risk_score}%
+          <View style={styles.severityLevelContainer}>
+            <Text style={styles.severityLevelLabel}>Color Vision Status:</Text>
+            <Text style={[styles.severityLevel, { color: getSeverityColor(results.overall_severity) }]}>
+              {results.overall_severity.toUpperCase()}
             </Text>
           </View>
           
-          <View style={styles.riskLevelContainer}>
-            <Text style={styles.riskLevelLabel}>Risk Level:</Text>
-            <Text style={[styles.riskLevel, { color: getRiskColor(prediction.risk_level) }]}>
-              {prediction.risk_level.toUpperCase()}
-            </Text>
+          {results.no_blindness === 1 && (
+            <View style={styles.noBlindnessContainer}>
+              <Text style={styles.noBlindnessText}>
+                ✓ No significant color vision deficiency detected
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Detailed Scores */}
+        <View style={styles.scoresCard}>
+          <Text style={styles.scoresTitle}>Detailed Analysis</Text>
+          
+          <View style={styles.scoreItem}>
+            <Text style={styles.scoreLabel}>Protanopia (Red-Green):</Text>
+            <Text style={styles.scoreValue}>{getPercentage(results.protanopia)}%</Text>
           </View>
           
-          <View style={styles.confidenceContainer}>
-            <Text style={styles.confidenceLabel}>
-              Confidence: {(prediction.confidence * 100).toFixed(0)}%
-            </Text>
+          <View style={styles.scoreItem}>
+            <Text style={styles.scoreLabel}>Deuteranopia (Red-Green):</Text>
+            <Text style={styles.scoreValue}>{getPercentage(results.deuteranopia)}%</Text>
+          </View>
+          
+          <View style={styles.scoreItem}>
+            <Text style={styles.scoreLabel}>Tritanopia (Blue-Yellow):</Text>
+            <Text style={styles.scoreValue}>{getPercentage(results.tritanopia)}%</Text>
           </View>
         </View>
 
-        {/* Risk Level Explanation */}
+        {/* Explanation */}
         <View style={styles.explanationCard}>
           <Text style={styles.explanationTitle}>What This Means</Text>
-          {prediction.risk_level.toLowerCase() === 'low' && (
+          {results.overall_severity === 'none' && (
             <Text style={styles.explanationText}>
-              Your cardiovascular disease risk is currently low. This is great news! 
-              Continue maintaining a healthy lifestyle to keep your risk low.
+              Great news! Your color vision appears to be normal. You can distinguish colors 
+              accurately across the spectrum. The camera filter feature is still available 
+              if you want to experience how others with color vision deficiency see the world.
             </Text>
           )}
-          {prediction.risk_level.toLowerCase() === 'moderate' && (
+          {results.overall_severity === 'mild' && (
             <Text style={styles.explanationText}>
-              Your cardiovascular disease risk is moderate. While not immediately concerning, 
-              there are steps you can take to reduce your risk and improve your heart health.
+              You have a mild color vision deficiency. While you can see most colors, 
+              you might have slight difficulty distinguishing certain shades. 
+              The recommended filter can help enhance your color perception.
             </Text>
           )}
-          {prediction.risk_level.toLowerCase() === 'high' && (
+          {results.overall_severity === 'moderate' && (
             <Text style={styles.explanationText}>
-              Your cardiovascular disease risk is high. It's important to take action now 
-              and consult with healthcare professionals to develop a comprehensive plan.
+              You have a moderate color vision deficiency. You may have noticeable 
+              difficulty distinguishing certain colors, particularly reds and greens. 
+              The personalized filter can significantly improve your color perception.
+            </Text>
+          )}
+          {results.overall_severity === 'severe' && (
+            <Text style={styles.explanationText}>
+              You have a significant color vision deficiency. Distinguishing certain 
+              colors may be quite challenging. The customized correction filter can 
+              help improve your color discrimination abilities.
             </Text>
           )}
         </View>
 
-        {/* Recommendations */}
-        <View style={styles.recommendationsCard}>
-          <Text style={styles.recommendationsTitle}>Recommendations</Text>
-          {prediction.recommendations.map((recommendation, index) => (
-            <View key={index} style={styles.recommendationItem}>
-              <Text style={styles.recommendationBullet}>•</Text>
-              <Text style={styles.recommendationText}>{recommendation}</Text>
-            </View>
-          ))}
+        {/* Filter Recommendations */}
+        <View style={styles.filterCard}>
+          <Text style={styles.filterTitle}>Personalized Correction Filter</Text>
+          <Text style={styles.filterDescription}>
+            Based on your test results, we've generated a personalized filter to enhance 
+            your color perception. You can try it using the camera feature.
+          </Text>
+          
+          <View style={styles.filterParams}>
+            <Text style={styles.filterParamTitle}>Filter Settings:</Text>
+            <Text style={styles.filterParam}>
+              Red-Green Correction: {Math.round(results.recommended_filter.protanopia_correction * 100)}%
+            </Text>
+            <Text style={styles.filterParam}>
+              Green-Red Correction: {Math.round(results.recommended_filter.deuteranopia_correction * 100)}%
+            </Text>
+            <Text style={styles.filterParam}>
+              Blue-Yellow Correction: {Math.round(results.recommended_filter.tritanopia_correction * 100)}%
+            </Text>
+            <Text style={styles.filterParam}>
+              Brightness: +{Math.round((results.recommended_filter.brightness_adjustment - 1) * 100)}%
+            </Text>
+            <Text style={styles.filterParam}>
+              Contrast: +{Math.round((results.recommended_filter.contrast_adjustment - 1) * 100)}%
+            </Text>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={styles.cameraButton}
+            onPress={handleUseCameraFilter}>
+            <Text style={styles.cameraButtonText}>Try Camera Filter</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.newTestButton}
+            onPress={handleNewTest}>
+            <Text style={styles.newTestButtonText}>Take New Test</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.historyButton}
+            onPress={handleViewHistory}>
+            <Text style={styles.historyButtonText}>View Test History</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.feedbackButton}
+            onPress={handleProvideFeedback}>
+            <Text style={styles.feedbackButtonText}>Provide Feedback</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Disclaimer */}
         <View style={styles.disclaimerCard}>
           <Text style={styles.disclaimerTitle}>Important Notice</Text>
           <Text style={styles.disclaimerText}>
-            This assessment is based on the information you provided and uses AI algorithms 
-            for analysis. It is not a substitute for professional medical advice, diagnosis, 
-            or treatment. Always consult with qualified healthcare providers regarding any 
-            health concerns or before making medical decisions.
+            This test is for educational and screening purposes only. It is not a substitute 
+            for professional medical diagnosis. If you have concerns about your color vision, 
+            please consult with an eye care professional.
           </Text>
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.feedbackButton}
-            onPress={handleProvideFeedback}>
-            <Text style={styles.feedbackButtonText}>Provide Feedback</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.newAssessmentButton}
-            onPress={handleNewAssessment}>
-            <Text style={styles.newAssessmentButtonText}>New Assessment</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.historyButton}
-            onPress={handleViewHistory}>
-            <Text style={styles.historyButtonText}>View History</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -195,7 +254,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
-  riskCard: {
+  severityCard: {
     backgroundColor: 'white',
     padding: 25,
     borderRadius: 15,
@@ -206,55 +265,82 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 8,
   },
-  riskHeader: {
+  severityHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
   },
-  riskTitle: {
+  severityTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
   },
-  riskIcon: {
+  severityIcon: {
     fontSize: 24,
     fontWeight: 'bold',
   },
-  riskScoreContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  riskScoreLabel: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 8,
-  },
-  riskScore: {
-    fontSize: 48,
-    fontWeight: 'bold',
-  },
-  riskLevelContainer: {
+  severityLevelContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
   },
-  riskLevelLabel: {
+  severityLevelLabel: {
     fontSize: 16,
     color: '#666',
     marginRight: 8,
   },
-  riskLevel: {
+  severityLevel: {
     fontSize: 18,
     fontWeight: 'bold',
   },
-  confidenceContainer: {
+  noBlindnessContainer: {
     alignItems: 'center',
+    backgroundColor: '#E8F5E8',
+    padding: 10,
+    borderRadius: 8,
   },
-  confidenceLabel: {
+  noBlindnessText: {
     fontSize: 14,
-    color: '#999',
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  scoresCard: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  scoresTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  scoreItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  scoreLabel: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+  },
+  scoreValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
   },
   explanationCard: {
     backgroundColor: 'white',
@@ -278,7 +364,7 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 22,
   },
-  recommendationsCard: {
+  filterCard: {
     backgroundColor: 'white',
     padding: 20,
     borderRadius: 12,
@@ -289,28 +375,33 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  recommendationsTitle: {
+  filterTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 15,
-  },
-  recommendationItem: {
-    flexDirection: 'row',
     marginBottom: 10,
-    alignItems: 'flex-start',
   },
-  recommendationBullet: {
-    fontSize: 16,
-    color: '#007AFF',
-    marginRight: 10,
-    marginTop: 2,
-  },
-  recommendationText: {
+  filterDescription: {
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
-    flex: 1,
+    marginBottom: 15,
+  },
+  filterParams: {
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 8,
+  },
+  filterParamTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  filterParam: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
   },
   disclaimerCard: {
     backgroundColor: '#FFF9E6',
@@ -333,19 +424,20 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     gap: 15,
+    marginBottom: 20,
   },
-  feedbackButton: {
+  cameraButton: {
     backgroundColor: '#007AFF',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
-  feedbackButtonText: {
+  cameraButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },
-  newAssessmentButton: {
+  newTestButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: '#007AFF',
@@ -353,7 +445,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
-  newAssessmentButtonText: {
+  newTestButtonText: {
     color: '#007AFF',
     fontSize: 16,
     fontWeight: '600',
@@ -365,6 +457,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   historyButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  feedbackButton: {
+    backgroundColor: '#28a745',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  feedbackButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',

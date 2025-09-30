@@ -1,0 +1,18 @@
+{
+  "test_id": "test_20250929_205732_20",
+  "user_id": "unknown",
+  "protanopia": 0.6,
+  "deuteranopia": 0.75,
+  "tritanopia": 1.0,
+  "no_blindness": 0.0,
+  "overall_severity": "severe",
+  "recommended_filter": {
+    "protanopia_correction": 0.48,
+    "deuteranopia_correction": 0.6000000000000001,
+    "tritanopia_correction": 0.8,
+    "brightness_adjustment": 1.1,
+    "contrast_adjustment": 1.15,
+    "saturation_adjustment": 1.2
+  },
+  "timestamp": "2025-09-29T21:01:09.316950"
+}
