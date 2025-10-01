@@ -8,6 +8,8 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  SafeAreaView,
+  Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { CompositeNavigationProp } from '@react-navigation/native';
@@ -28,6 +30,16 @@ type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Home'>,
   StackNavigationProp<RootStackParamList>
 >;
+
+// Theme colors used in the UI — new palette (colorblind-friendly, high contrast)
+const Colors = {
+  primary: '#0B6EFF',     // vivid blue
+  accent: '#FF8C42',      // warm orange for accents
+  secondary: '#28C3C9',   // teal for complementary actions
+  background: '#F4F7FA',  // very light neutral
+  card: '#FFFFFF',
+  text: '#1F2937',        // dark slate
+};
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
@@ -107,19 +119,41 @@ const HomeScreen: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Color Vision Assessment</Text>
-        <Text style={styles.subtitle}>
-          Advanced color vision deficiency detection and correction
-        </Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <View style={styles.headerContainer}>
+        <View style={styles.header}>
+          {/* Decorative circles for a modern look */}
+          <View style={styles.decorCircle1} />
+          <View style={styles.decorCircle2} />
+
+          <View style={styles.headerContent}>
+            <View style={styles.headerTextWrap}>
+              <Text style={styles.title}>Color Vision</Text>
+              <Text style={styles.subtitle}>Advanced detection & correction</Text>
+            </View>
+
+            {/* Avatar / profile initials */}
+            <View style={styles.avatarWrap}>
+              {profile ? (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{(profile.name || 'U').split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase()}</Text>
+                </View>
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarPlaceholderText}>?</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
       </View>
 
       {/* Welcome Section */}
@@ -219,14 +253,18 @@ const HomeScreen: React.FC = () => {
           test results.
         </Text>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.background,
+  },
+  scrollContent: {
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -239,12 +277,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  header: {
-    backgroundColor: '#007AFF',
-    padding: 24,
-    paddingTop: 48,
-    alignItems: 'center',
-  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -253,7 +285,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#E3F2FD',
+    color: 'rgba(255,255,255,0.95)',
     textAlign: 'center',
     marginTop: 8,
   },
@@ -319,7 +351,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.primary,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -339,10 +371,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: Colors.secondary,
   },
   secondaryButtonText: {
-    color: '#007AFF',
+    color: Colors.primary,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -368,6 +400,81 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 20,
     marginBottom: 12,
+  },
+  /* New styles for enhanced header and avatar */
+  headerContainer: {
+    backgroundColor: Colors.primary,
+  },
+  header: {
+    padding: 20,
+    paddingTop: 36,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  headerContent: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerTextWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  decorCircle1: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(40,195,201,0.10)',
+    top: -40,
+    left: -40,
+  },
+  decorCircle2: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,140,66,0.08)',
+    top: -20,
+    right: -20,
+  },
+  avatarWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    overflow: 'hidden',
+  },
+  avatar: {
+    backgroundColor: Colors.secondary,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  avatarText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  avatarPlaceholder: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarPlaceholderText: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: '700',
   },
 });
 

@@ -6,13 +6,23 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  SafeAreaView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, CVDResults } from '../types';
 
 type ResultsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Results'>;
 type ResultsScreenRouteProp = RouteProp<RootStackParamList, 'Results'>;
+
+const Colors = {
+  primary: '#007AFF',
+  accent: '#FF6B6B',
+  background: '#f5f5f5',
+  card: '#FFFFFF',
+  text: '#333333',
+};
 
 const ResultsScreen: React.FC = () => {
   const navigation = useNavigation<ResultsScreenNavigationProp>();
@@ -75,12 +85,19 @@ const ResultsScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Color Vision Test Results</Text>
-        <Text style={styles.subtitle}>
-          {formatDate(results.timestamp)}
-        </Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <View style={styles.headerContainer}>
+        <View style={styles.header}>
+          <View style={styles.decorCircle1} />
+          <View style={styles.decorCircle2} />
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={styles.title}>Color Vision Test Results</Text>
+              <Text style={styles.subtitle}>{formatDate(results.timestamp)}</Text>
+            </View>
+          </View>
+        </View>
       </View>
 
       <View style={styles.content}>
@@ -193,27 +210,39 @@ const ResultsScreen: React.FC = () => {
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={styles.cameraButton}
+            style={[styles.cameraButton]}
             onPress={handleUseCameraFilter}>
-            <Text style={styles.cameraButtonText}>Try Camera Filter</Text>
+            <View style={styles.buttonContent}>
+              <Ionicons name="camera-outline" size={18} color="white" />
+              <Text style={styles.cameraButtonText}>Try Camera Filter</Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.newTestButton}
             onPress={handleNewTest}>
-            <Text style={styles.newTestButtonText}>Take New Test</Text>
+            <View style={styles.buttonContentRight}>
+              <Text style={styles.newTestButtonText}>Take New Test</Text>
+              <Ionicons name="play-outline" size={16} color={Colors.primary} />
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.historyButton}
             onPress={handleViewHistory}>
-            <Text style={styles.historyButtonText}>View Test History</Text>
+            <View style={styles.buttonContentRightAlt}>
+              <Text style={styles.historyButtonText}>View Test History</Text>
+              <Ionicons name="time-outline" size={14} color="white" />
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.feedbackButton}
             onPress={handleProvideFeedback}>
-            <Text style={styles.feedbackButtonText}>Provide Feedback</Text>
+            <View style={styles.buttonContent}>
+              <Ionicons name="chatbubble-ellipses-outline" size={16} color="white" />
+              <Text style={styles.feedbackButtonText}>Provide Feedback</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -227,7 +256,8 @@ const ResultsScreen: React.FC = () => {
           </Text>
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -236,10 +266,42 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  /* Header */
+  headerContainer: {
+    backgroundColor: Colors.primary,
+  },
   header: {
-    backgroundColor: '#007AFF',
-    padding: 30,
+    padding: 18,
+    paddingTop: 30,
     alignItems: 'center',
+    position: 'relative',
+  },
+  headerContent: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  decorCircle1: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    top: -30,
+    left: -30,
+  },
+  decorCircle2: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    top: -10,
+    right: -10,
   },
   title: {
     fontSize: 24,
@@ -428,14 +490,33 @@ const styles = StyleSheet.create({
   },
   cameraButton: {
     backgroundColor: '#007AFF',
-    padding: 16,
+    padding: 14,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
   },
   cameraButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  buttonContentRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  buttonContentRightAlt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   newTestButton: {
     backgroundColor: 'transparent',

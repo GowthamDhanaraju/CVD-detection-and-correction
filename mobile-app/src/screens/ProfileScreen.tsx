@@ -8,10 +8,20 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  SafeAreaView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '../services/api';
 import { UserProfile } from '../types';
+
+const Colors = {
+  primary: '#007AFF',
+  accent: '#FF6B6B',
+  background: '#f5f5f5',
+  card: '#FFFFFF',
+  text: '#333333',
+};
 
 const ProfileScreen: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile>({
@@ -78,12 +88,19 @@ const ProfileScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>User Profile</Text>
-        <Text style={styles.subtitle}>
-          Please provide accurate information for better assessment
-        </Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <View style={styles.headerContainer}>
+        <View style={styles.header}>
+          <View style={styles.decorCircle1} />
+          <View style={styles.decorCircle2} />
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={styles.title}>User Profile</Text>
+              <Text style={styles.subtitle}>Please provide accurate information for better assessment</Text>
+            </View>
+          </View>
+        </View>
       </View>
 
       <View style={styles.form}>
@@ -142,11 +159,15 @@ const ProfileScreen: React.FC = () => {
           {loading ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text style={styles.saveButtonText}>Save Profile</Text>
+            <View style={styles.saveButtonContent}>
+              <Ionicons name="save-outline" size={20} color="white" style={{ marginRight: 8 }} />
+              <Text style={styles.saveButtonText}>Save Profile</Text>
+            </View>
           )}
         </TouchableOpacity>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -155,10 +176,42 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  /* Header redesign */
+  headerContainer: {
+    backgroundColor: Colors.primary,
+  },
   header: {
-    backgroundColor: '#007AFF',
-    padding: 30,
+    padding: 18,
+    paddingTop: 30,
     alignItems: 'center',
+    position: 'relative',
+  },
+  headerContent: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  decorCircle1: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    top: -30,
+    left: -30,
+  },
+  decorCircle2: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    top: -10,
+    right: -10,
   },
   title: {
     fontSize: 24,
@@ -228,14 +281,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    padding: 14,
+    borderRadius: 10,
     alignItems: 'center',
     marginTop: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   disabledButton: {
     backgroundColor: '#ccc',
+  },
+  saveButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   saveButtonText: {
     color: 'white',
