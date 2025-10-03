@@ -378,31 +378,31 @@ class ColorVisionProcessor:
             
             # Enhanced protanopia correction (red-green issues)
             if severity_scores.get('protanopia', 0) > 0:
-                intensity = filter_params['protanopia_correction'] * 2.0
+                intensity = filter_params['protanopia_correction'] * 1.0  # Reduced from 2.0 to 1.0 (50% reduction)
                 # Enhance red channel separation
                 corrected[:, :, 0] = np.clip(corrected[:, :, 0] * (1.0 + intensity), 0, 1)
                 # Apply orange-red shift to improve red perception
                 red_mask = corrected[:, :, 0] > corrected[:, :, 1]
-                corrected[red_mask, 1] *= (1.0 + intensity * 0.3)
+                corrected[red_mask, 1] *= (1.0 + intensity * 0.15)  # Reduced from 0.3 to 0.15 (50% reduction)
             
             # Enhanced deuteranopia correction (green issues)
             if severity_scores.get('deuteranopia', 0) > 0:
-                intensity = filter_params['deuteranopia_correction'] * 1.5
+                intensity = filter_params['deuteranopia_correction'] * 0.75  # Reduced from 1.5 to 0.75 (50% reduction)
                 # Boost green channel differentiation
                 corrected[:, :, 1] = np.clip(corrected[:, :, 1] * (1.0 + intensity), 0, 1)
                 # Add subtle blue shift for green perception
                 green_areas = corrected[:, :, 1] > np.maximum(corrected[:, :, 0], corrected[:, :, 2])
-                corrected[green_areas, 2] *= (1.0 + intensity * 0.2)
+                corrected[green_areas, 2] *= (1.0 + intensity * 0.1)  # Reduced from 0.2 to 0.1 (50% reduction)
             
             # Enhanced tritanopia correction (blue-yellow issues)
             if severity_scores.get('tritanopia', 0) > 0:
-                intensity = filter_params['tritanopia_correction'] * 2.0
+                intensity = filter_params['tritanopia_correction'] * 1.0  # Reduced from 2.0 to 1.0 (50% reduction)
                 # Enhance blue-yellow discrimination
                 corrected[:, :, 2] = np.clip(corrected[:, :, 2] * (1.0 + intensity), 0, 1)
                 # Apply yellow enhancement
                 yellow_areas = (corrected[:, :, 0] > 0.5) & (corrected[:, :, 1] > 0.5) & (corrected[:, :, 2] < 0.3)
-                corrected[yellow_areas, 0] *= (1.0 + intensity * 0.4)
-                corrected[yellow_areas, 1] *= (1.0 + intensity * 0.4)
+                corrected[yellow_areas, 0] *= (1.0 + intensity * 0.2)  # Reduced from 0.4 to 0.2 (50% reduction)
+                corrected[yellow_areas, 1] *= (1.0 + intensity * 0.2)  # Reduced from 0.4 to 0.2 (50% reduction)
             
             # Apply global adjustments
             corrected = self._apply_global_adjustments(
@@ -725,12 +725,6 @@ class CVDAnalyzer:
         }
         
         for i, question in enumerate(questions):
-            print(f"Question {i+1}: {question.get('question_id', 'unknown')}")
-            print(f"  Filter type: {question.get('filter_type', 'unknown')}")
-            print(f"  Difficulty: {question.get('difficulty_level', 'unknown')}")
-            print(f"  User response: {question.get('user_response')}")
-            print(f"  Correct answer: {question.get('correct_answer')}")
-            
             if question.get('user_response') is not None:
                 filter_type = question.get('filter_type')
                 correct_answer = question.get('correct_answer')
@@ -741,19 +735,14 @@ class CVDAnalyzer:
                     scores[filter_type]['total'] += 1
                     if user_response == correct_answer:
                         scores[filter_type]['correct'] += 1
-                        print(f"  ✓ Correct")
                     else:
-                        print(f"  ✗ Incorrect")
                         # Track CVD confusion errors specifically
                         if difficulty_level == 'cvd_confusion':
                             scores[filter_type]['cvd_confusion_errors'] += 1
-                            print(f"    (CVD confusion type error - indicates possible {filter_type})")
                 else:
-                    print(f"  Warning: Unknown filter type '{filter_type}'")
+                    pass  # Unknown filter type
             else:
-                print(f"  Skipped (no user response)")
-        
-        print(f"Score summary: {scores}")
+                pass  # No user response
         
         # Calculate severity scores with improved algorithm
         severity_scores = {}
@@ -773,8 +762,6 @@ class CVDAnalyzer:
                 severity = 0
             
             severity_scores[deficiency_type] = round(severity, 2)
-        
-        print(f"Severity scores: {severity_scores}")
         
         # Determine overall severity
         max_severity = max(severity_scores.values()) if severity_scores.values() else 0
@@ -798,7 +785,6 @@ class CVDAnalyzer:
             'overall_severity': overall
         }
         
-        print(f"Final analysis result: {result}")
         return result
     
     def generate_correction_filter(self, severity_scores: Dict) -> Dict:
@@ -821,12 +807,12 @@ class CVDAnalyzer:
         max_severity = max(numeric_scores) if numeric_scores else 0
         
         return {
-            'protanopia_correction': severity_scores.get('protanopia', 0) * 0.8,
-            'deuteranopia_correction': severity_scores.get('deuteranopia', 0) * 0.8,
-            'tritanopia_correction': severity_scores.get('tritanopia', 0) * 0.8,
-            'brightness_adjustment': 1.0 + (max_severity * 0.1),
-            'contrast_adjustment': 1.0 + (max_severity * 0.15),
-            'saturation_adjustment': 1.0 + (max_severity * 0.2)
+            'protanopia_correction': severity_scores.get('protanopia', 0) * 0.4,  # Reduced from 0.8 to 0.4 (50% reduction)
+            'deuteranopia_correction': severity_scores.get('deuteranopia', 0) * 0.4,  # Reduced from 0.8 to 0.4 (50% reduction)
+            'tritanopia_correction': severity_scores.get('tritanopia', 0) * 0.4,  # Reduced from 0.8 to 0.4 (50% reduction)
+            'brightness_adjustment': 1.0 + (max_severity * 0.05),  # Reduced from 0.1 to 0.05 (50% reduction)
+            'contrast_adjustment': 1.0 + (max_severity * 0.075),  # Reduced from 0.15 to 0.075 (50% reduction)
+            'saturation_adjustment': 1.0 + (max_severity * 0.1)  # Reduced from 0.2 to 0.1 (50% reduction)
         }
     
     def apply_gan_correction_filter(self, image_data: str, severity_scores: Dict) -> Optional[str]:
@@ -943,31 +929,31 @@ class CVDAnalyzer:
             
             # Enhanced protanopia correction (red-green issues)
             if severity_scores.get('protanopia', 0) > 0:
-                intensity = filter_params['protanopia_correction'] * 2.0
+                intensity = filter_params['protanopia_correction'] * 1.0  # Reduced from 2.0 to 1.0 (50% reduction)
                 # Enhance red channel separation
                 corrected[:, :, 0] = np.clip(corrected[:, :, 0] * (1.0 + intensity), 0, 1)
                 # Apply orange-red shift to improve red perception
                 red_mask = corrected[:, :, 0] > corrected[:, :, 1]
-                corrected[red_mask, 1] *= (1.0 + intensity * 0.3)
+                corrected[red_mask, 1] *= (1.0 + intensity * 0.15)  # Reduced from 0.3 to 0.15 (50% reduction)
             
             # Enhanced deuteranopia correction (green issues)
             if severity_scores.get('deuteranopia', 0) > 0:
-                intensity = filter_params['deuteranopia_correction'] * 1.5
+                intensity = filter_params['deuteranopia_correction'] * 0.75  # Reduced from 1.5 to 0.75 (50% reduction)
                 # Boost green channel differentiation
                 corrected[:, :, 1] = np.clip(corrected[:, :, 1] * (1.0 + intensity), 0, 1)
                 # Add subtle blue shift for green perception
                 green_areas = corrected[:, :, 1] > np.maximum(corrected[:, :, 0], corrected[:, :, 2])
-                corrected[green_areas, 2] *= (1.0 + intensity * 0.2)
+                corrected[green_areas, 2] *= (1.0 + intensity * 0.1)  # Reduced from 0.2 to 0.1 (50% reduction)
             
             # Enhanced tritanopia correction (blue-yellow issues)
             if severity_scores.get('tritanopia', 0) > 0:
-                intensity = filter_params['tritanopia_correction'] * 2.0
+                intensity = filter_params['tritanopia_correction'] * 1.0  # Reduced from 2.0 to 1.0 (50% reduction)
                 # Enhance blue-yellow discrimination
                 corrected[:, :, 2] = np.clip(corrected[:, :, 2] * (1.0 + intensity), 0, 1)
                 # Apply yellow enhancement
                 yellow_areas = (corrected[:, :, 0] > 0.5) & (corrected[:, :, 1] > 0.5) & (corrected[:, :, 2] < 0.3)
-                corrected[yellow_areas, 0] *= (1.0 + intensity * 0.4)
-                corrected[yellow_areas, 1] *= (1.0 + intensity * 0.4)
+                corrected[yellow_areas, 0] *= (1.0 + intensity * 0.2)  # Reduced from 0.4 to 0.2 (50% reduction)
+                corrected[yellow_areas, 1] *= (1.0 + intensity * 0.2)  # Reduced from 0.4 to 0.2 (50% reduction)
             
             # Apply global adjustments
             corrected = self._apply_global_adjustments(

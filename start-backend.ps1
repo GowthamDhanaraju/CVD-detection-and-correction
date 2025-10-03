@@ -8,7 +8,7 @@ Set-Location -Path (Join-Path $PSScriptRoot "backend")
 & .\cvd_backend_env\Scripts\Activate.ps1
 
 Write-Host "Backend environment activated" -ForegroundColor Yellow
-Write-Host "Starting FastAPI server on http://localhost:8000" -ForegroundColor Cyan
+Write-Host "Starting FastAPI server on http://localhost:8001" -ForegroundColor Cyan
 
 # Start the FastAPI server
 python main.py

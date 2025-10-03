@@ -22,14 +22,21 @@ const ColorTestScreen = () => {
   const [responses, setResponses] = useState<{ [key: string]: boolean }>({});
   const [testCompleted, setTestCompleted] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [isCompletingTest, setIsCompletingTest] = useState(false);
 
   useEffect(() => {
     initializeTest();
   }, []);
 
   // Reset test when screen comes into focus (user navigates back to this screen)
+  // But NOT when we're in the middle of completing a test or when test is completed
   useFocusEffect(
     React.useCallback(() => {
+      // Don't reset if we're currently completing the test or if test is already completed
+      if (testCompleted || isCompletingTest) {
+        return;
+      }
+      
       // Always start a fresh test when this screen comes into focus
       setCurrentQuestionIndex(0);
       setResponses({});
@@ -37,7 +44,7 @@ const ColorTestScreen = () => {
       setTest(null);
       setShowInstructions(true);
       initializeTest();
-    }, [])
+    }, [testCompleted, isCompletingTest])
   );
 
   const initializeTest = async () => {
@@ -88,7 +95,7 @@ const ColorTestScreen = () => {
   };
 
   const handleResponse = async (response: boolean) => {
-    if (!test || !test.questions[currentQuestionIndex]) return;
+    if (!test || !test.questions[currentQuestionIndex] || isCompletingTest) return;
 
     const currentQuestion = test.questions[currentQuestionIndex];
     const questionId = currentQuestion.question_id;
@@ -107,6 +114,7 @@ const ColorTestScreen = () => {
       if (currentQuestionIndex < test.questions.length - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
       } else {
+        // This was the last question, complete the test
         await completeTest();
       }
     } catch (error) {
@@ -116,9 +124,12 @@ const ColorTestScreen = () => {
   };
 
   const completeTest = async () => {
-    if (!test) return;
+    if (!test || isCompletingTest) {
+      return;
+    }
 
     try {
+      setIsCompletingTest(true);
       setLoading(true);
       
       // Complete test and get results
@@ -140,14 +151,21 @@ const ColorTestScreen = () => {
       // Save latest results for immediate navigation
       await AsyncStorage.setItem('latestTestResults', JSON.stringify(results));
       
+      // Mark test as completed before navigation
       setTestCompleted(true);
       
-      // Navigate to results
-      (navigation as any).navigate('Results', { results });
+      // Small delay to ensure state is set before navigation
+      setTimeout(() => {
+        // Navigate to results
+        (navigation as any).navigate('Results', { results });
+      }, 100);
       
     } catch (error) {
       console.error('Error completing test:', error);
       Alert.alert('Error', 'Failed to complete test. Please try again.');
+      // Reset completion flags on error
+      setIsCompletingTest(false);
+      setTestCompleted(false);
     } finally {
       setLoading(false);
     }
@@ -165,7 +183,7 @@ const ColorTestScreen = () => {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>
-          {testCompleted ? 'Analyzing results...' : 'Loading test...'}
+          {isCompletingTest ? 'Analyzing results...' : testCompleted ? 'Analyzing results...' : 'Loading test...'}
         </Text>
       </View>
     );

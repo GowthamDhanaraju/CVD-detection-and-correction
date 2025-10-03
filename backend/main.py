@@ -14,6 +14,7 @@ import base64
 from io import BytesIO
 from PIL import Image
 from local_storage import data_manager
+from kafka_producer import get_kafka_producer
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -92,13 +93,27 @@ class CameraFilter(BaseModel):
     created_at: str
     updated_at: str
 
+class UserExperience(BaseModel):
+    ease_of_use: int
+    accuracy: int
+    usefulness: int
+
+class DeviceInfo(BaseModel):
+    platform: str
+    os_version: str
+    app_version: str
+
 class FeedbackData(BaseModel):
+    feedback_id: Optional[str] = None
     user_id: str
-    test_id: str
-    filter_id: Optional[str] = None
-    feedback_type: str
-    rating: int
-    comments: Optional[str] = None
+    page_name: str  # 'home', 'profile', 'color_test', 'camera_filter', 'history'
+    feedback_type: str  # 'rating', 'comment', 'bug_report', 'feature_request'
+    rating: Optional[int] = None  # 1-5 scale
+    comment: Optional[str] = None
+    user_experience: Optional[UserExperience] = None
+    context: Optional[Dict] = None
+    timestamp: str
+    device_info: Optional[DeviceInfo] = None
 
 class CorrectionRequest(BaseModel):
     image_data: str  # Base64 encoded image
@@ -312,30 +327,21 @@ async def complete_test(test_id: str):
         with open(test_file, 'r') as f:
             test_data = json.load(f)
         
-        print(f"Loaded test data for {test_id}")
-        print(f"Questions count: {len(test_data.get('questions', []))}")
-        
         # Count answered questions
         answered_questions = [q for q in test_data["questions"] if q.get('user_response') is not None]
-        print(f"Answered questions: {len(answered_questions)}")
         
         if not answered_questions:
             raise HTTPException(status_code=400, detail="No questions have been answered")
         
         # Analyze results
-        print("Starting analysis...")
         analysis = cvd_analyzer.analyze_test_results(test_data["questions"])
-        print(f"Analysis complete: {analysis}")
         
         # Generate correction filter
-        print("Generating filter...")
         filter_params = cvd_analyzer.generate_correction_filter(analysis)
-        print(f"Filter params: {filter_params}")
         
         # Get GAN recommendations if available
         gan_recommendations = color_processor.get_gan_filter_recommendations(analysis)
         if gan_recommendations:
-            print(f"GAN recommendations: {gan_recommendations}")
             # Add GAN recommendations to filter params
             filter_params.update({
                 "gan_recommendations": gan_recommendations,
@@ -373,11 +379,9 @@ async def complete_test(test_id: str):
         with open(test_file, 'w') as f:
             json.dump(test_data, f, indent=2)
         
-        print(f"Test {test_id} completed successfully")
         return results
         
     except Exception as e:
-        print(f"Error completing test {test_id}: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
@@ -571,35 +575,161 @@ async def apply_correction_filter(request: CorrectionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Feedback endpoints
-@app.post("/api/v1/feedback")
+# Feedback endpoints with Kafka integration
+@app.post("/api/v1/feedback/submit")
 async def submit_feedback(feedback: FeedbackData):
-    """Submit user feedback"""
+    """Submit user feedback with Kafka integration"""
     try:
-        feedback_entry = {
-            "feedback_id": f"fb_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-            "user_id": feedback.user_id,
-            "test_id": feedback.test_id,
-            "filter_id": feedback.filter_id,
-            "feedback_type": feedback.feedback_type,
-            "rating": feedback.rating,
-            "comments": feedback.comments,
-            "timestamp": datetime.now().isoformat()
-        }
+        # Generate feedback ID if not provided
+        if not feedback.feedback_id:
+            feedback.feedback_id = f"fb_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{feedback.user_id}"
         
-        # Save feedback
-        feedback_file = data_manager.base_path / "feedback" / f"{feedback_entry['feedback_id']}.json"
+        # Convert to dictionary for processing
+        feedback_dict = feedback.dict()
+        
+        # Get Kafka producer
+        kafka_producer = get_kafka_producer()
+        
+        # Send to Kafka
+        kafka_success = kafka_producer.send_feedback_event(
+            feedback_data=feedback_dict,
+            user_id=feedback.user_id,
+            session_id=f"session_{int(datetime.now().timestamp())}"
+        )
+        
+        # Also save locally for backup and immediate queries
+        feedback_file = data_manager.base_path / "feedback" / f"{feedback.feedback_id}.json"
         feedback_file.parent.mkdir(exist_ok=True)
         
         with open(feedback_file, 'w') as f:
-            json.dump(feedback_entry, f, indent=2)
+            json.dump({
+                **feedback_dict,
+                "kafka_sent": kafka_success,
+                "local_timestamp": datetime.now().isoformat()
+            }, f, indent=2)
         
         return {
             "message": "Feedback submitted successfully",
-            "feedback_id": feedback_entry["feedback_id"]
+            "feedback_id": feedback.feedback_id,
+            "kafka_sent": kafka_success,
+            "status": "success"
         }
+        
     except Exception as e:
+        logging.error(f"Error submitting feedback: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/feedback/user/{user_id}")
+async def get_user_feedback(user_id: str):
+    """Get all feedback for a specific user"""
+    try:
+        feedback_dir = data_manager.base_path / "feedback"
+        if not feedback_dir.exists():
+            return []
+        
+        user_feedback = []
+        for feedback_file in feedback_dir.glob("*.json"):
+            try:
+                with open(feedback_file, 'r') as f:
+                    feedback_data = json.load(f)
+                    if feedback_data.get('user_id') == user_id:
+                        user_feedback.append(feedback_data)
+            except Exception as e:
+                logging.warning(f"Error reading feedback file {feedback_file}: {e}")
+                continue
+        
+        # Sort by timestamp (newest first)
+        user_feedback.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        return user_feedback
+        
+    except Exception as e:
+        logging.error(f"Error getting user feedback: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/feedback/analytics")
+async def get_feedback_analytics(page_name: Optional[str] = None, time_range: Optional[str] = None):
+    """Get feedback analytics and statistics"""
+    try:
+        feedback_dir = data_manager.base_path / "feedback"
+        if not feedback_dir.exists():
+            return {
+                "total_feedback": 0,
+                "average_rating": 0,
+                "feedback_by_type": {},
+                "feedback_by_page": {},
+                "recent_feedback": []
+            }
+        
+        all_feedback = []
+        for feedback_file in feedback_dir.glob("*.json"):
+            try:
+                with open(feedback_file, 'r') as f:
+                    feedback_data = json.load(f)
+                    
+                    # Filter by page name if specified
+                    if page_name and feedback_data.get('page_name') != page_name:
+                        continue
+                        
+                    all_feedback.append(feedback_data)
+            except Exception as e:
+                logging.warning(f"Error reading feedback file {feedback_file}: {e}")
+                continue
+        
+        # Calculate analytics
+        total_feedback = len(all_feedback)
+        
+        # Average rating
+        ratings = [f.get('rating', 0) for f in all_feedback if f.get('rating')]
+        average_rating = sum(ratings) / len(ratings) if ratings else 0
+        
+        # Feedback by type
+        feedback_by_type = {}
+        for feedback in all_feedback:
+            feedback_type = feedback.get('feedback_type', 'unknown')
+            feedback_by_type[feedback_type] = feedback_by_type.get(feedback_type, 0) + 1
+        
+        # Feedback by page
+        feedback_by_page = {}
+        for feedback in all_feedback:
+            page_name = feedback.get('page_name', 'unknown')
+            feedback_by_page[page_name] = feedback_by_page.get(page_name, 0) + 1
+        
+        # Recent feedback (last 10)
+        all_feedback.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        recent_feedback = all_feedback[:10]
+        
+        # Get Kafka stats if available
+        try:
+            kafka_producer = get_kafka_producer()
+            kafka_stats = kafka_producer.get_stats()
+        except Exception:
+            kafka_stats = None
+        
+        return {
+            "total_feedback": total_feedback,
+            "average_rating": round(average_rating, 2),
+            "feedback_by_type": feedback_by_type,
+            "feedback_by_page": feedback_by_page,
+            "recent_feedback": recent_feedback,
+            "kafka_stats": kafka_stats
+        }
+        
+    except Exception as e:
+        logging.error(f"Error getting feedback analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/feedback/kafka/health")
+async def get_kafka_health():
+    """Get Kafka connection health status"""
+    try:
+        kafka_producer = get_kafka_producer()
+        return kafka_producer.health_check()
+    except Exception as e:
+        return {
+            "status": "error",
+            "connected": False,
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001)

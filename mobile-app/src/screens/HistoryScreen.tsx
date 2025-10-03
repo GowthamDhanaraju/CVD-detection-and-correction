@@ -44,7 +44,6 @@ const HistoryScreen: React.FC = () => {
       if (savedProfile) {
         userProfile = JSON.parse(savedProfile);
         setProfile(userProfile);
-        console.log('Loaded user profile:', userProfile);
       }
 
       // Load test results - prioritize user-specific storage
@@ -52,22 +51,18 @@ const HistoryScreen: React.FC = () => {
       
       // First try to get user-specific results
       if (userProfile && userProfile.user_id) {
-        console.log('[History] Loading for user:', userProfile.user_id);
         const userResults = await AsyncStorage.getItem(`cvd_results_${userProfile.user_id}`);
         if (userResults) {
           results = JSON.parse(userResults);
-          console.log('[History] Found user-specific results:', results.length);
         }
       }
       
       // If no user-specific results, try legacy storage
       if (results.length === 0) {
         const savedResults = await AsyncStorage.getItem('cvdTestResults');
-        console.log('Raw saved results:', savedResults);
         
         if (savedResults) {
           results = JSON.parse(savedResults);
-          console.log('Parsed test results from legacy storage:', results);
         }
       }
       
@@ -75,7 +70,6 @@ const HistoryScreen: React.FC = () => {
       if (results.length === 0) {
         const latestResults = await AsyncStorage.getItem('latestTestResults');
         if (latestResults) {
-          console.log('Found latest results format:', latestResults);
           const latestResult = JSON.parse(latestResults);
           results = [latestResult];
         }
@@ -84,9 +78,6 @@ const HistoryScreen: React.FC = () => {
       // Sort by timestamp (newest first)
       if (results.length > 0) {
         results.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        console.log('[History] Found results:', results.length);
-      } else {
-        console.log('[History] No test results found in any storage');
       }
       
       setTestResults(results);
@@ -102,16 +93,12 @@ const HistoryScreen: React.FC = () => {
 
   const loadTestQuestions = async (testId: string) => {
     try {
-      console.log('Loading test questions for test ID:', testId);
       const savedQuestions = await AsyncStorage.getItem(`testQuestions_${testId}`);
-      console.log('Raw saved questions:', savedQuestions);
       
       if (savedQuestions) {
         const questions = JSON.parse(savedQuestions);
-        console.log('Parsed test questions:', questions);
         setTestQuestions(questions);
       } else {
-        console.log('No test questions found for test ID:', testId);
         setTestQuestions([]);
       }
     } catch (error) {

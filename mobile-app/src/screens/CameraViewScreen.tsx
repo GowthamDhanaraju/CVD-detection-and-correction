@@ -14,6 +14,7 @@ import { Camera, CameraView } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FilterParams, CVDResults } from '../types';
 import apiService from '../services/api';
+import { FeedbackButton } from '../components/FeedbackModal';
 
 const { width } = Dimensions.get('window');
 
@@ -84,12 +85,14 @@ const CameraViewScreen = () => {
   const [testResults, setTestResults] = useState<CVDResults | null>(null);
   const [ganFilterParams, setGanFilterParams] = useState<FilterParams | null>(null);
   const [isLoadingGANParams, setIsLoadingGANParams] = useState(false);
+  const [recentTestResults, setRecentTestResults] = useState<CVDResults | null>(null);
   const cameraRef = useRef<CameraView>(null);
 
   useEffect(() => {
     requestCameraPermission();
     loadFilterSettings();
     loadGANFilterParams(); // Load GAN parameters on startup
+    loadRecentTestResults(); // Load recent test results for feedback
   }, []);
 
   const loadGANFilterParams = async () => {
@@ -158,6 +161,20 @@ const CameraViewScreen = () => {
       }
     } catch (error) {
       console.error('Error loading filter settings:', error);
+    }
+  };
+
+  const loadRecentTestResults = async () => {
+    try {
+      // Get the most recent test results for feedback context
+      const latestResults = await AsyncStorage.getItem('latestTestResults');
+      if (latestResults) {
+        const results = JSON.parse(latestResults);
+        setRecentTestResults(results);
+        console.log('Loaded recent test results for feedback');
+      }
+    } catch (error) {
+      console.error('Error loading recent test results:', error);
     }
   };
 
@@ -270,6 +287,24 @@ const CameraViewScreen = () => {
 
   return (
     <View style={styles.container}>
+      {/* Feedback Button */}
+      <FeedbackButton 
+        pageName="camera_filter" 
+        context={{
+          selectedFilter: selectedFilter.id,
+          filterApplied: selectedFilter.id !== 'off',
+          filterName: selectedFilter.name
+        }}
+        filterDetails={{
+          selectedFilter: selectedFilter,
+          filterParams: selectedFilter.params,
+          needsMoreBlue: false,
+          needsMoreRed: false,
+          needsMoreGreen: false,
+        }}
+        recentTestResults={recentTestResults}
+      />
+
       {/* Camera View */}
       <View style={styles.cameraContainer}>
         <CameraView

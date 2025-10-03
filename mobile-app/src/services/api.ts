@@ -7,8 +7,7 @@ import {
   CameraFilter,
   ApiResponse, 
   HealthCheck,
-  CorrectionRequest,
-  CorrectionResponse
+  FeedbackData,
 } from '../types';
 
 // API Base URL - Set for web development (most reliable)
@@ -28,35 +27,11 @@ class ColorVisionApiService {
   });
 
   constructor() {
-    console.log('API Service initialized with base URL:', API_BASE_URL);
-    
-    // Request interceptor
-    this.api.interceptors.request.use(
-      (config) => {
-        console.log('API Request:', config.method?.toUpperCase(), config.url);
-        console.log('Full URL:', (config.baseURL || '') + (config.url || ''));
-        return config;
-      },
-      (error) => {
-        console.error('API Request Error:', error);
-        return Promise.reject(error);
-      }
-    );
-
-    // Response interceptor
+    // Response interceptor for error handling
     this.api.interceptors.response.use(
-      (response) => {
-        console.log('API Response:', response.status, response.config.url);
-        return response;
-      },
+      (response) => response,
       (error) => {
-        console.error('API Response Error:', error.response?.status, error.message);
-        console.error('Error details:', {
-          url: error.config?.url,
-          baseURL: error.config?.baseURL,
-          method: error.config?.method,
-          code: error.code
-        });
+        console.error('API Error:', error.response?.status, error.message);
         return Promise.reject(error);
       }
     );
@@ -213,10 +188,44 @@ class ColorVisionApiService {
         severity_scores: severityScores
       });
       
-      console.log('GAN filter parameters generated:', response.data);
       return response.data;
     } catch (error) {
       console.error('Generate GAN filter parameters failed:', error);
+      throw error;
+    }
+  }
+
+  // Feedback Management with Kafka Integration
+  async submitFeedback(feedback: FeedbackData): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.api.post('/api/v1/feedback/submit', feedback);
+      return response.data;
+    } catch (error) {
+      console.error('Submit feedback failed:', error);
+      throw error;
+    }
+  }
+
+  async getUserFeedback(userId: string): Promise<FeedbackData[]> {
+    try {
+      const response: AxiosResponse<FeedbackData[]> = await this.api.get(`/api/v1/feedback/user/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get user feedback failed:', error);
+      throw error;
+    }
+  }
+
+  async getFeedbackAnalytics(pageName?: string, timeRange?: string): Promise<any> {
+    try {
+      const params = new URLSearchParams();
+      if (pageName) params.append('page_name', pageName);
+      if (timeRange) params.append('time_range', timeRange);
+      
+      const response = await this.api.get(`/api/v1/feedback/analytics?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get feedback analytics failed:', error);
       throw error;
     }
   }

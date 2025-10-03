@@ -55,14 +55,14 @@ def generate_traditional_filter_params(self, severity_scores: Dict) -> Dict:
     
     # Calculate filter parameters based on severity
     return {
-        "protanopia_correction": protanopia_score * 0.8,
-        "deuteranopia_correction": deuteranopia_score * 0.8,
-        "tritanopia_correction": tritanopia_score * 0.8,
-        "brightness_adjustment": 1.0 + (max(protanopia_score, deuteranopia_score, tritanopia_score) * 0.2),
-        "contrast_adjustment": 1.0 + (max(protanopia_score, deuteranopia_score, tritanopia_score) * 0.3),
-        "saturation_adjustment": 1.0 + (max(protanopia_score, deuteranopia_score, tritanopia_score) * 0.4),
-        "hue_rotation": protanopia_score * 20.0 - tritanopia_score * 10.0,
-        "sepia_amount": protanopia_score * 0.2
+        "protanopia_correction": protanopia_score * 0.4,  # Reduced from 0.8 to 0.4 (50% reduction)
+        "deuteranopia_correction": deuteranopia_score * 0.4,  # Reduced from 0.8 to 0.4 (50% reduction)
+        "tritanopia_correction": tritanopia_score * 0.4,  # Reduced from 0.8 to 0.4 (50% reduction)
+        "brightness_adjustment": 1.0 + (max(protanopia_score, deuteranopia_score, tritanopia_score) * 0.1),  # Reduced from 0.2 to 0.1 (50% reduction)
+        "contrast_adjustment": 1.0 + (max(protanopia_score, deuteranopia_score, tritanopia_score) * 0.15),  # Reduced from 0.3 to 0.15 (50% reduction)
+        "saturation_adjustment": 1.0 + (max(protanopia_score, deuteranopia_score, tritanopia_score) * 0.2),  # Reduced from 0.4 to 0.2 (50% reduction)
+        "hue_rotation": protanopia_score * 10.0 - tritanopia_score * 5.0,  # Reduced from 20.0 and 10.0 to 10.0 and 5.0 (50% reduction)
+        "sepia_amount": protanopia_score * 0.1  # Reduced from 0.2 to 0.1 (50% reduction)
     }
 
 # Monkey patch the methods to ColorVisionProcessor

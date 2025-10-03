@@ -49,6 +49,41 @@ export interface FilterParams {
   sepia_amount?: number;
 }
 
+export interface FeedbackData {
+  feedback_id?: string;
+  user_id: string;
+  page_name: string; // 'home', 'profile', 'color_test', 'camera_filter', 'history'
+  feedback_type: 'rating' | 'comment' | 'bug_report' | 'feature_request';
+  rating?: number; // 1-5 scale
+  comment?: string;
+  user_experience?: {
+    ease_of_use: number; // 1-5
+    accuracy: number; // 1-5
+    usefulness: number; // 1-5
+  };
+  context?: {
+    test_id?: string;
+    filter_id?: string;
+    screen_context?: any;
+  };
+  timestamp: string;
+  device_info?: {
+    platform: string;
+    os_version: string;
+    app_version: string;
+  };
+}
+
+export interface KafkaFeedbackEvent {
+  event_type: 'feedback_submitted';
+  data: FeedbackData;
+  metadata: {
+    timestamp: string;
+    session_id: string;
+    user_id: string;
+  };
+}
+
 export interface CameraFilter {
   filter_id: string;
   user_id: string;

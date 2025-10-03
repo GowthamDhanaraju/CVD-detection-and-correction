@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,14 @@ import {
   ScrollView,
   Alert,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList, CVDResults } from '../types';
+import { RootStackParamList, CVDResults, TestQuestion } from '../types';
+import { FeedbackButton } from '../components/FeedbackModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ResultsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Results'>;
 type ResultsScreenRouteProp = RouteProp<RootStackParamList, 'Results'>;
@@ -28,6 +31,38 @@ const ResultsScreen: React.FC = () => {
   const navigation = useNavigation<ResultsScreenNavigationProp>();
   const route = useRoute<ResultsScreenRouteProp>();
   const { results } = route.params;
+  const [testQuestions, setTestQuestions] = useState<TestQuestion[]>([]);
+
+  useEffect(() => {
+    loadTestQuestions();
+  }, []);
+
+  const loadTestQuestions = async () => {
+    try {
+      const savedQuestions = await AsyncStorage.getItem(`testQuestions_${results.test_id}`);
+      if (savedQuestions) {
+        const questions = JSON.parse(savedQuestions);
+        setTestQuestions(questions);
+      }
+    } catch (error) {
+      console.error('Error loading test questions:', error);
+    }
+  };
+
+  const getAnswerExplanation = (question: TestQuestion, userAnswer: boolean, correctAnswer: boolean): string => {
+    const wasCorrect = userAnswer === correctAnswer;
+    const questionType = question.filter_type;
+    
+    if (wasCorrect) {
+      return `✓ Correct! You accurately identified this ${questionType} test pattern.`;
+    } else {
+      if (correctAnswer) {
+        return `✗ The images should look the same to someone with ${questionType} color vision deficiency, but different to those with normal color vision.`;
+      } else {
+        return `✗ The images should look different to someone with ${questionType} color vision deficiency.`;
+      }
+    }
+  };
 
   const getSeverityColor = (severity: string): string => {
     switch (severity.toLowerCase()) {
@@ -57,10 +92,6 @@ const ResultsScreen: React.FC = () => {
       default:
         return '?';
     }
-  };
-
-  const handleProvideFeedback = () => {
-    navigation.navigate('Feedback' as any, { testId: results.test_id });
   };
 
   const handleNewTest = () => {
@@ -207,6 +238,58 @@ const ResultsScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Detailed Question Analysis */}
+        {testQuestions.length > 0 && (
+          <View style={styles.questionsCard}>
+            <Text style={styles.questionsTitle}>Question by Question Analysis</Text>
+            <Text style={styles.questionsSubtitle}>Review your answers for each test image</Text>
+            
+            {testQuestions.map((question, index) => (
+              <View key={question.question_id} style={styles.questionItem}>
+                <View style={styles.questionHeader}>
+                  <Text style={styles.questionNumber}>Question {index + 1}</Text>
+                  <Text style={styles.questionType}>Testing: {question.filter_type}</Text>
+                </View>
+                
+                <View style={styles.imageContainer}>
+                  <View style={styles.imageGroup}>
+                    <Text style={styles.imageLabel}>Original Image</Text>
+                    <Image 
+                      source={{ uri: question.image_original }} 
+                      style={styles.testImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <View style={styles.imageGroup}>
+                    <Text style={styles.imageLabel}>Filtered Image</Text>
+                    <Image 
+                      source={{ uri: question.image_filtered }} 
+                      style={styles.testImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </View>
+                
+                <View style={styles.answerAnalysis}>
+                  <View style={styles.answerRow}>
+                    <Text style={styles.answerLabel}>Your Answer:</Text>
+                    <Text style={[styles.answerValue, { color: question.user_response === question.correct_answer ? '#4CAF50' : '#F44336' }]}>
+                      {question.user_response ? 'Same' : 'Different'}
+                    </Text>
+                  </View>
+                  <View style={styles.answerRow}>
+                    <Text style={styles.answerLabel}>Correct Answer:</Text>
+                    <Text style={styles.answerValue}>{question.correct_answer ? 'Same' : 'Different'}</Text>
+                  </View>
+                  <Text style={styles.explanation}>
+                    {getAnswerExplanation(question, question.user_response || false, question.correct_answer)}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity
@@ -236,14 +319,28 @@ const ResultsScreen: React.FC = () => {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.feedbackButton}
-            onPress={handleProvideFeedback}>
-            <View style={styles.buttonContent}>
-              <Ionicons name="chatbubble-ellipses-outline" size={16} color="white" />
-              <Text style={styles.feedbackButtonText}>Provide Feedback</Text>
-            </View>
-          </TouchableOpacity>
+          <FeedbackButton
+            pageName="test_results"
+            context={{
+              testId: results.test_id,
+              testResults: results,
+              severity: results.overall_severity,
+              recommendedFilter: results.recommended_filter
+            }}
+            recentTestResults={results}
+            style={{
+              backgroundColor: '#28a745',
+              padding: 16,
+              borderRadius: 12,
+              alignItems: 'center',
+              position: 'relative',
+              top: 0,
+              right: 0,
+              elevation: 0,
+              shadowOpacity: 0,
+              zIndex: 1,
+            }}
+          />
         </View>
 
         {/* Disclaimer */}
@@ -464,6 +561,103 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginBottom: 4,
+  },
+  questionsCard: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  questionsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  questionsSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+  },
+  questionItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    paddingBottom: 20,
+    marginBottom: 20,
+  },
+  questionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  questionNumber: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  questionType: {
+    fontSize: 12,
+    color: '#666',
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  imageContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  imageGroup: {
+    flex: 0.48,
+    alignItems: 'center',
+  },
+  imageLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  testImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  answerAnalysis: {
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 8,
+  },
+  answerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  answerLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  answerValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  explanation: {
+    fontSize: 12,
+    color: '#666',
+    lineHeight: 18,
+    fontStyle: 'italic',
+    marginTop: 8,
   },
   disclaimerCard: {
     backgroundColor: '#FFF9E6',
