@@ -18,6 +18,7 @@ COPY package*.json ./
 # Install dependencies with npm (yarn.lock not required)
 RUN npm install -g @expo/cli@latest && \
     npm ci --only=production && \
+    npx expo install typescript && \
     npm cache clean --force
 
 # Copy application code
