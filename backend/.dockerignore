@@ -1,0 +1,60 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Virtual environment
+cvd_backend_env/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Local data (will be mounted as volumes)
+data/
+models/saved_models/*.pth
+models/saved_models/*.pkl
+
+# Test files
+test_images/
+.pytest_cache/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Documentation
+README.md
+*.md
+
+# Git
+.git/
+.gitignore
+
+# Docker files (not needed in container)
+Dockerfile
+docker-compose*.yml

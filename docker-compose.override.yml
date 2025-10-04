@@ -1,0 +1,52 @@
+version: '3.8'
+
+# Docker Compose override for development
+# This file is automatically used alongside docker-compose.yml
+
+services:
+  backend:
+    # Enable hot reloading for development
+    volumes:
+      - ./backend:/app
+      - /app/cvd_backend_env  # Exclude virtual environment
+    environment:
+      - PYTHONPATH=/app
+      - RELOAD=true
+    command: ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  frontend:
+    # Enable hot reloading for development
+    volumes:
+      - ./mobile-app/src:/app/src
+      - ./mobile-app/assets:/app/assets
+      - /app/node_modules  # Exclude node_modules
+    environment:
+      - EXPO_DEVTOOLS_LISTEN_ADDRESS=0.0.0.0
+      - WATCHMAN_NO_LOCAL=1
+
+  # Development tools
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: cvd-redis-ui
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - cvd-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: cvd-kafka-ui
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+    ports:
+      - "8080:8080"
+    depends_on:
+      - kafka
+    networks:
+      - cvd-network

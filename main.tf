@@ -19,6 +19,13 @@ resource "aws_security_group" "docker_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    from_port   = 8001
+    to_port     = 8001
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -51,6 +58,9 @@ resource "aws_instance" "docker_host" {
               git clone https://github.com/GowthamDhanaraju/CVD-detection-and-correction.git cvd-app
               cd cvd-app
               
+              # Pull latest changes to get Node.js 20 update
+              git pull origin main
+              
               # Build Docker images directly on EC2
               docker build -t cvd-backend:latest ./backend
               docker build -t cvd-frontend:latest ./mobile-app
@@ -59,7 +69,7 @@ resource "aws_instance" "docker_host" {
               docker run -d --name cvd-backend -p 8001:8001 cvd-backend:latest
               
               # Run CVD Frontend  
-              docker run -d --name cvd-frontend -p 80:3000 cvd-frontend:latest
+              docker run -d --name cvd-frontend -p 80:8080 cvd-frontend:latest
               EOF
 
   tags = {
