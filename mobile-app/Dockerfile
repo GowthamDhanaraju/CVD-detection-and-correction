@@ -14,9 +14,8 @@ RUN apk add --no-cache \
 
 # Copy package files
 COPY package*.json ./
-COPY yarn.lock* ./
 
-# Install dependencies
+# Install dependencies with npm (yarn.lock not required)
 RUN npm install -g @expo/cli@latest && \
     npm ci --only=production && \
     npm cache clean --force
