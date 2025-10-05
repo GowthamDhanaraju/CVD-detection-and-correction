@@ -53,11 +53,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.8'
-          memory: 900M
+          cpus: '0.3'
+          memory: 400M
         reservations:
-          cpus: '0.4'
-          memory: 512M
+          cpus: '0.1'
+          memory: 200M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
@@ -90,9 +90,6 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.15'
-          memory: 512M
-        reservations:
           cpus: '0.05'
           memory: 256M
     logging:
@@ -112,12 +109,12 @@ services:
     networks:
       - cvd-network
     restart: always
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 512M
+          cpus: '0.1'
+          memory: 256M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -136,15 +133,15 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-      ZOOKEEPER_HEAP_OPTS: "-Xmx512m -Xms512m"
+      ZOOKEEPER_HEAP_OPTS: "-Xmx128m -Xms128m"
     networks:
       - cvd-network
     restart: always
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 1G
+          cpus: '0.1'
+          memory: 512M
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_logs:/var/lib/zookeeper/log
@@ -168,7 +165,7 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-      KAFKA_HEAP_OPTS: "-Xmx1G -Xms1G"
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms256m"
       KAFKA_LOG_RETENTION_HOURS: 168
       KAFKA_LOG_SEGMENT_BYTES: 1073741824
       KAFKA_LOG_RETENTION_BYTES: 1073741824
@@ -180,8 +177,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.05'
-          memory: 512M
+          cpus: '0.02'
+          memory: 256M
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
       interval: 60s
