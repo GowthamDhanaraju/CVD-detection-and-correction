@@ -559,6 +559,7 @@ class ColorVisionTestGenerator:
                     np.clip(color[1] + random.randint(-10, 10), 0, 255),
                     np.clip(color[2] + random.randint(-10, 10), 0, 255)
                 ]
+                color = tuple(int(c) for c in color)
                 cv2.circle(image, (x, y), radius, color, -1)
         
         # Add inner pattern for more complexity
@@ -568,6 +569,7 @@ class ColorVisionTestGenerator:
             if 0 <= x < 400 and 0 <= y < 400:
                 radius = random.randint(6, 12)
                 color = random.choice(pattern_colors)
+                color = tuple(int(c) for c in color)
                 cv2.circle(image, (x, y), radius, color, -1)
         
         return image
@@ -601,6 +603,7 @@ class ColorVisionTestGenerator:
             x, y = random.randint(20, 379), random.randint(20, 379)
             radius = random.randint(8, 12)
             color = random.choice(colors)
+            color = tuple(int(c) for c in color)
             cv2.circle(image, (x, y), radius, color, -1)
         
         return image
