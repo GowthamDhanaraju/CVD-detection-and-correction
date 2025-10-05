@@ -188,13 +188,24 @@ class GANFilterGenerator:
         
         # Default model path
         if model_path is None:
-            base_dir = os.path.dirname(os.path.dirname(__file__))  # Go up to project root
-            model_dir = os.path.join(base_dir, "models", "saved_models")
-            model_files = [f for f in os.listdir(model_dir) if f.startswith('cvd_generator_') and f.endswith('.pth')]
-            if model_files:
-                model_path = os.path.join(model_dir, sorted(model_files)[-1])  # Use latest model
+            # Check if we're in Docker container first (mounted models)
+            docker_model_dir = "/app/models/saved_models"
+            if os.path.exists(docker_model_dir):
+                model_dir = docker_model_dir
             else:
-                raise FileNotFoundError(f"No generator model found in {model_dir}")
+                # Fallback to local development path
+                base_dir = os.path.dirname(os.path.dirname(__file__))  # Go up to project root
+                model_dir = os.path.join(base_dir, "models", "saved_models")
+            
+            try:
+                model_files = [f for f in os.listdir(model_dir) if f.startswith('cvd_generator_') and f.endswith('.pth')]
+                if model_files:
+                    model_path = os.path.join(model_dir, sorted(model_files)[-1])  # Use latest model
+                else:
+                    raise FileNotFoundError(f"No generator model found in {model_dir}")
+            except FileNotFoundError as e:
+                logger.warning(f"Model directory not found: {model_dir}")
+                raise FileNotFoundError(f"No generator model found in {model_dir}") from e
         
         self.model_path = model_path
         logger.info(f"Initializing GAN Filter Generator with device: {self.device}")
