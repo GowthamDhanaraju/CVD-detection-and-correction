@@ -538,6 +538,8 @@ class ColorVisionTestGenerator:
                 np.clip(color[1] + random.randint(-15, 15), 0, 255),
                 np.clip(color[2] + random.randint(-15, 15), 0, 255)
             ]
+            # Convert to tuple of integers for OpenCV
+            color = tuple(int(c) for c in color)
             cv2.circle(image, (x, y), radius, color, -1)
         
         # Create hidden pattern - a simple shape that CVD users cannot see

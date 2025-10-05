@@ -2,6 +2,58 @@ provider "aws" {
   region = "ap-south-1"  # change to your region
 }
 
+# IAM role for EC2 to access S3
+resource "aws_iam_role" "ec2_s3_role" {
+  name = "ec2-s3-access-role"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# IAM policy for S3 access
+resource "aws_iam_policy" "s3_access_policy" {
+  name = "s3-cvd-models-access"
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::cvd-models-bucket-1619722215",
+          "arn:aws:s3:::cvd-models-bucket-1619722215/*"
+        ]
+      }
+    ]
+  })
+}
+
+# Attach policy to role
+resource "aws_iam_role_policy_attachment" "s3_access_attachment" {
+  role       = aws_iam_role.ec2_s3_role.name
+  policy_arn = aws_iam_policy.s3_access_policy.arn
+}
+
+# Instance profile
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "ec2-s3-profile"
+  role = aws_iam_role.ec2_s3_role.name
+}
+
 resource "aws_security_group" "docker_sg" {
   name_prefix = "docker-sg"
 
@@ -39,6 +91,7 @@ resource "aws_instance" "docker_host" {
   instance_type = "t2.micro"
   key_name      = "cvd_instance_key" # The key name of your PEM in AWS
   vpc_security_group_ids = [aws_security_group.docker_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
 
   root_block_device {
     volume_size = 20
@@ -49,7 +102,7 @@ resource "aws_instance" "docker_host" {
   user_data = <<-EOF
               #!/bin/bash
               apt-get update -y
-              apt-get install -y docker.io git
+              apt-get install -y docker.io git awscli
               systemctl start docker
               systemctl enable docker
               
@@ -61,19 +114,26 @@ resource "aws_instance" "docker_host" {
               # Pull latest changes to get Node.js 20 update
               git pull origin main
               
+              # Create models directory
+              mkdir -p ./models/saved_models
+              
+              # Download model files from S3
+              aws s3 cp s3://cvd-models-bucket-1619722215/saved_models/cvd_discriminator_20250930_095913.pth ./models/saved_models/
+              aws s3 cp s3://cvd-models-bucket-1619722215/saved_models/cvd_generator_20250930_095913.pth ./models/saved_models/
+              
               # Build Docker images directly on EC2
               docker build -t cvd-backend:latest ./backend
               docker build -t cvd-frontend:latest ./mobile-app
               
               # Run CVD Backend
-              docker run -d --name cvd-backend -p 8001:8001 cvd-backend:latest
+              docker run -d --name cvd-backend -p 8001:8001 -v /opt/cvd-app/models:/app/models cvd-backend:latest
               
               # Run CVD Frontend  
               docker run -d --name cvd-frontend -p 80:8080 cvd-frontend:latest
               EOF
 
   tags = {
-    Name = "docker-ec2"
+    Name = "color_vision_def"
   }
 }
 
