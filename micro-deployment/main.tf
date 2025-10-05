@@ -44,17 +44,16 @@ resource "aws_security_group" "cvd_micro_sg" {
   }
 }
 
-# Key Pair
-resource "aws_key_pair" "cvd_micro_key" {
-  key_name   = "cvd-micro-key"
-  public_key = file("~/.ssh/cvd_instance_key.pem.pub")
+# Use existing key pair
+data "aws_key_pair" "existing_key" {
+  key_name = "cvd_instance_key"
 }
 
 # EC2 Instance
 resource "aws_instance" "cvd_micro_instance" {
   ami                     = "ami-0dee22c13ea7a9a67"  # Ubuntu 24.04 LTS
   instance_type          = "t2.micro"
-  key_name               = aws_key_pair.cvd_micro_key.key_name
+  key_name               = data.aws_key_pair.existing_key.key_name
   vpc_security_group_ids = [aws_security_group.cvd_micro_sg.id]
   
   root_block_device {
@@ -63,7 +62,7 @@ resource "aws_instance" "cvd_micro_instance" {
     encrypted   = true
   }
 
-  user_data = base64encode(templatefile("${path.module}/ec2-deployment/user-data-micro.sh", {
+  user_data = base64encode(templatefile("${path.module}/../ec2-deployment/user-data-micro.sh", {
     github_repo = "https://github.com/GowthamDhanaraju/CVD-detection-and-correction.git"
     branch      = "micro-deployment"
   }))
