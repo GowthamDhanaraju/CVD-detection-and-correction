@@ -1,8 +1,28 @@
-# Ultra-lightweight frontend for t2.micro 
+# Build stage
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package.micro.json package.json
+COPY yarn.lock* package-lock.json* ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY . .
+COPY App.micro.tsx App.tsx
+COPY index.micro.ts index.ts
+
+# Build the app for web
+RUN npx expo export --platform web
+
+# Production stage
 FROM nginx:alpine
 
-# Copy the static HTML file
-COPY index.micro.html /usr/share/nginx/html/index.html
+# Copy built app
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Create nginx config
 RUN echo 'server { \
