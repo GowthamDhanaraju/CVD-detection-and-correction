@@ -102,9 +102,17 @@ resource "aws_instance" "docker_host" {
   user_data = <<-EOF
               #!/bin/bash
               apt-get update -y
-              apt-get install -y docker.io git awscli
+              apt-get install -y docker.io git awscli python3-pip
               systemctl start docker
               systemctl enable docker
+              
+              # Install AWS CLI v2 if not available
+              if ! command -v aws &> /dev/null; then
+                  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                  apt-get install -y unzip
+                  unzip awscliv2.zip
+                  ./aws/install
+              fi
               
               # Clone the repository
               cd /opt
@@ -118,8 +126,8 @@ resource "aws_instance" "docker_host" {
               mkdir -p ./models/saved_models
               
               # Download model files from S3
-              aws s3 cp s3://cvd-models-bucket-1619722215/saved_models/cvd_discriminator_20250930_095913.pth ./models/saved_models/
-              aws s3 cp s3://cvd-models-bucket-1619722215/saved_models/cvd_generator_20250930_095913.pth ./models/saved_models/
+              /usr/local/bin/aws s3 cp s3://cvd-models-bucket-1619722215/saved_models/cvd_discriminator_20250930_095913.pth ./models/saved_models/
+              /usr/local/bin/aws s3 cp s3://cvd-models-bucket-1619722215/saved_models/cvd_generator_20250930_095913.pth ./models/saved_models/
               
               # Build Docker images directly on EC2
               docker build -t cvd-backend:latest ./backend
