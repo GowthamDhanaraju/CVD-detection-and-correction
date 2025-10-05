@@ -101,25 +101,47 @@ resource "aws_instance" "docker_host" {
 
   user_data = <<-EOF
               #!/bin/bash
+              set -e
+              
+              # Update package index
               apt-get update -y
-              apt-get install -y docker.io git awscli python3-pip
+              
+              # Install prerequisites
+              apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release unzip git
+              
+              # Install Docker using official method for Ubuntu 24.04
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+              echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+              
+              # Update and install Docker
+              apt-get update -y
+              apt-get install -y docker-ce docker-ce-cli containerd.io
+              
+              # Start and enable Docker
               systemctl start docker
               systemctl enable docker
               
-              # Install AWS CLI v2 if not available
-              if ! command -v aws &> /dev/null; then
-                  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                  apt-get install -y unzip
-                  unzip awscliv2.zip
-                  ./aws/install
-              fi
+              # Add ubuntu user to docker group
+              usermod -aG docker ubuntu
+              
+              # Wait for Docker to be ready
+              until docker info >/dev/null 2>&1; do
+                  echo "Waiting for Docker to start..."
+                  sleep 2
+              done
+              
+              # Install AWS CLI v2
+              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+              unzip awscliv2.zip
+              ./aws/install
+              rm -rf awscliv2.zip aws/
               
               # Clone the repository
               cd /opt
               git clone https://github.com/GowthamDhanaraju/CVD-detection-and-correction.git cvd-app
               cd cvd-app
               
-              # Pull latest changes to get Node.js 20 update
+              # Pull latest changes
               git pull origin main
               
               # Create models directory
@@ -138,6 +160,8 @@ resource "aws_instance" "docker_host" {
               
               # Run CVD Frontend  
               docker run -d --name cvd-frontend -p 80:8080 cvd-frontend:latest
+              
+              echo "Deployment completed successfully!"
               EOF
 
   tags = {
