@@ -53,11 +53,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.3'
-          memory: 400M
+          cpus: '0.2'
+          memory: 300M
         reservations:
-          cpus: '0.1'
-          memory: 200M
+          cpus: '0.05'
+          memory: 150M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
@@ -90,8 +90,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.05'
-          memory: 256M
+          cpus: '0.03'
+          memory: 200M
     logging:
       driver: "json-file"
       options:
@@ -113,8 +113,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.1'
-          memory: 256M
+          cpus: '0.05'
+          memory: 200M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -140,8 +140,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.1'
-          memory: 512M
+          cpus: '0.05'
+          memory: 400M
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_logs:/var/lib/zookeeper/log
@@ -177,8 +177,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.02'
-          memory: 256M
+          cpus: '0.01'
+          memory: 200M
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
       interval: 60s
