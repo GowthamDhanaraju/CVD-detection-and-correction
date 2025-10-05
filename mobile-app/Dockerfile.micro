@@ -13,6 +13,7 @@ COPY package*.json ./
 # Install only production dependencies with optimizations
 RUN npm ci --only=production --no-audit --no-fund && \
     npm install -g @expo/cli@latest && \
+    npm install typescript && \
     npx expo install --fix && \
     npm cache clean --force
 
