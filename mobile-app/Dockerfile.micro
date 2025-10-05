@@ -1,0 +1,46 @@
+# Lightweight Node.js frontend for micro instances
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install minimal dependencies
+RUN apk add --no-cache curl
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies with optimizations
+RUN npm ci --only=production --no-audit --no-fund && \
+    npm install -g @expo/cli@latest && \
+    npx expo install --fix && \
+    npm cache clean --force
+
+# Copy application code
+COPY . .
+
+# Set environment variables for minimal resource usage
+ENV EXPO_NO_CACHE=1
+ENV METRO_CACHE=false
+ENV TMPDIR=/tmp
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=384"
+
+# Create non-root user with proper permissions
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001 && \
+    chown -R nextjs:nodejs /app && \
+    mkdir -p /tmp && \
+    chmod 1777 /tmp && \
+    chown -R nextjs:nodejs /tmp
+USER nextjs
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=60s --timeout=15s --start-period=120s --retries=2 \
+    CMD curl -f http://localhost:8080 || exit 1
+
+# Start the application in micro mode
+CMD ["npx", "expo", "start", "--web", "--port", "8080", "--host", "lan", "--no-dev"]
