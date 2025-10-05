@@ -18,7 +18,7 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci --only=production && \
     npm install -g @expo/cli@latest && \
-    npx expo install typescript && \
+    npx expo install --fix && \
     npm cache clean --force
 
 # Copy application code
