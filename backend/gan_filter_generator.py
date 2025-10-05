@@ -161,7 +161,7 @@ class ColorRestorationGenerator(nn.Module):
         d1 = self.dec1(torch.cat([d2_up, e1], dim=1), cond_emb)
         
         # Generate overlay filter and blend weight
-        overlay_filter = torch.tanh(self.filter_head(d1)) * 0.25  # Reduced from 0.5 to 0.25 (50% reduction)
+        overlay_filter = torch.tanh(self.filter_head(d1)) * 0.45  # Boosted for stronger color correction
         blend_weight = self.blend_head(d1)
         
         # Apply adaptive color restoration
@@ -464,14 +464,14 @@ class GANFilterGenerator:
                 
                 # Generate filter parameters based on GAN analysis
                 return {
-                    "protanopia_correction": min(protanopia_score * (1.0 + abs(r_shift - g_shift)) * 0.5, 1.0),  # Added 50% reduction
-                    "deuteranopia_correction": min(deuteranopia_score * (1.0 + abs(g_shift - b_shift)) * 0.5, 1.0),  # Added 50% reduction
-                    "tritanopia_correction": min(tritanopia_score * (1.0 + abs(b_shift - r_shift)) * 0.5, 1.0),  # Added 50% reduction
-                    "brightness_adjustment": 1.0 + np.mean(mean_values) * 0.15,  # Reduced from 0.3 to 0.15 (50% reduction)
-                    "contrast_adjustment": 1.0 + np.mean(std_values) * 0.25,  # Reduced from 0.5 to 0.25 (50% reduction)
-                    "saturation_adjustment": 1.0 + (protanopia_score + deuteranopia_score) * 0.3,  # Reduced from 0.6 to 0.3 (50% reduction)
-                    "hue_rotation": (r_shift - b_shift) * 15.0,  # Reduced from 30.0 to 15.0 (50% reduction)
-                    "sepia_amount": protanopia_score * 0.15  # Reduced from 0.3 to 0.15 (50% reduction)
+                    "protanopia_correction": min(protanopia_score * (1.0 + abs(r_shift - g_shift)) * 0.7, 1.0),  # Boosted for stronger correction
+                    "deuteranopia_correction": min(deuteranopia_score * (1.0 + abs(g_shift - b_shift)) * 0.7, 1.0),  # Boosted for stronger correction
+                    "tritanopia_correction": min(tritanopia_score * (1.0 + abs(b_shift - r_shift)) * 0.7, 1.0),  # Boosted for stronger correction
+                    "brightness_adjustment": 1.0 + np.mean(mean_values) * 0.25,  # Boosted for enhanced visibility
+                    "contrast_adjustment": 1.0 + np.mean(std_values) * 0.45,  # Boosted for stronger color contrast
+                    "saturation_adjustment": 1.0 + (protanopia_score + deuteranopia_score) * 0.5,  # Boosted for richer colors
+                    "hue_rotation": (r_shift - b_shift) * 25.0,  # Boosted for improved color separation
+                    "sepia_amount": protanopia_score * 0.25  # Boosted for warmer tones
                 }
                 
         except Exception as e:

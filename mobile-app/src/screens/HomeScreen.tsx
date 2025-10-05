@@ -20,7 +20,6 @@ import { RootStackParamList, UserProfile, CVDResults } from '../types';
 
 type TabParamList = {
   Home: undefined;
-  Profile: undefined;
   ColorTest: undefined;
   CameraView: { filter?: any };
   History: undefined;
@@ -82,17 +81,7 @@ const HomeScreen: React.FC = () => {
   };
 
   const startNewTest = () => {
-    if (!profile) {
-      Alert.alert(
-        'Profile Required', 
-        'Please set up your profile first to take a color vision test.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Go to Profile', onPress: () => navigation.navigate('Profile') }
-        ]
-      );
-      return;
-    }
+    // Profile is guaranteed to exist since it's mandatory before reaching main app
     navigation.navigate('ColorTest');
   };
 
@@ -138,19 +127,6 @@ const HomeScreen: React.FC = () => {
             <View style={styles.headerTextWrap}>
               <Text style={styles.title}>Color Vision</Text>
               <Text style={styles.subtitle}>Advanced detection & correction</Text>
-            </View>
-
-            {/* Avatar / profile initials */}
-            <View style={styles.avatarWrap}>
-              {profile ? (
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{(profile.name || 'U').split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase()}</Text>
-                </View>
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarPlaceholderText}>?</Text>
-                </View>
-              )}
             </View>
           </View>
         </View>
@@ -278,16 +254,17 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: 'white',
     textAlign: 'center',
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
     color: 'rgba(255,255,255,0.95)',
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   welcomeSection: {
     padding: 20,
@@ -401,7 +378,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 12,
   },
-  /* New styles for enhanced header and avatar */
+  /* Enhanced header styles */
   headerContainer: {
     backgroundColor: Colors.primary,
   },
@@ -413,13 +390,11 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     width: '100%',
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
   headerTextWrap: {
-    flex: 1,
-    paddingRight: 12,
+    alignItems: 'center',
   },
   decorCircle1: {
     position: 'absolute',
@@ -439,43 +414,7 @@ const styles = StyleSheet.create({
     top: -20,
     right: -20,
   },
-  avatarWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    overflow: 'hidden',
-  },
-  avatar: {
-    backgroundColor: Colors.secondary,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  avatarText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  avatarPlaceholder: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarPlaceholderText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: '700',
-  },
+  /* Decorative circles for header */
 });
 
 export default HomeScreen;

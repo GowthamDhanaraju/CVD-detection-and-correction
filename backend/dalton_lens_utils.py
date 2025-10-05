@@ -66,7 +66,7 @@ class ColorVisionProcessor:
         
     def apply_cvd_filter(self, image_array: np.ndarray, deficiency_type: str, severity: float = 1.0) -> np.ndarray:
         """
-        Apply color vision deficiency filter to an image
+        Apply color vision deficiency filter to an image with increased intensity
         
         Args:
             image_array: Input image as numpy array (RGB)
@@ -85,9 +85,12 @@ class ColorVisionProcessor:
         else:
             raise ValueError(f"Unknown deficiency type: {deficiency_type}")
         
-        # Normalize image to 0-1 range with input validation
+        # Ensure input is valid
+        if image_array is None or image_array.size == 0:
+            raise ValueError("Input image is empty or None")
+        
+        # Normalize image to 0-1 range with proper validation
         if image_array.dtype != np.uint8:
-            # Convert to uint8 if not already
             image_array = np.clip(image_array, 0, 255).astype(np.uint8)
         
         normalized_image = image_array.astype(np.float32) / 255.0
@@ -96,20 +99,26 @@ class ColorVisionProcessor:
         if len(normalized_image.shape) != 3 or normalized_image.shape[2] != 3:
             raise ValueError("Input image must be a 3-channel RGB image")
         
+        # Apply increased severity for more noticeable effects
+        severity = min(1.0, severity * 2.0)  # Double the intensity for more noticeable effects
+        
         # Reshape for matrix multiplication
         h, w, c = normalized_image.shape
         reshaped = normalized_image.reshape(-1, 3)
         
-        # Apply transformation matrix with error handling
+        # Apply transformation matrix with proper error handling
         try:
             transformed = np.dot(reshaped, transform_matrix.T)
         except Exception as e:
-            print(f"Matrix multiplication error: {e}")
+            logging.error(f"Matrix multiplication error: {e}")
             return image_array  # Return original on error
         
         # Apply severity (interpolate between original and transformed)
         if severity < 1.0:
             transformed = (1 - severity) * reshaped + severity * transformed
+        else:
+            # For full severity, use the transformation completely
+            pass
         
         # Reshape back and convert to uint8 with proper clipping
         filtered_image = transformed.reshape(h, w, c)
@@ -470,21 +479,99 @@ class ColorVisionProcessor:
         except Exception as e:
             logging.error(f"Error applying global adjustments: {e}")
             return image
+    
+    def generate_realtime_filter_params(self, severity_scores: Dict) -> Optional[Dict]:
+        """
+        Generate real-time filter parameters using GAN if available, fallback to traditional
+        
+        Args:
+            severity_scores: Dictionary with CVD severity scores
+            
+        Returns:
+            Filter parameters or None if failed
+        """
+        if self.gan_generator:
+            try:
+                return self.gan_generator.get_filter_recommendations(severity_scores)
+            except Exception as e:
+                logging.error(f"GAN filter generation failed: {e}")
+        
+        # Fallback to traditional parameters
+        return self.generate_traditional_filter_params(severity_scores)
+    
+    def generate_traditional_filter_params(self, severity_scores: Dict) -> Dict:
+        """
+        Generate traditional filter parameters based on severity scores
+        
+        Args:
+            severity_scores: Dictionary with CVD severity scores
+            
+        Returns:
+            Traditional filter parameters
+        """
+        import time
+        
+        # Extract numeric severity scores
+        protanopia = severity_scores.get('protanopia', 0)
+        deuteranopia = severity_scores.get('deuteranopia', 0)
+        tritanopia = severity_scores.get('tritanopia', 0)
+        
+        max_severity = max(protanopia, deuteranopia, tritanopia)
+        
+        return {
+            'protanopia_correction': protanopia * 0.8,  # Increased from 0.4 to 0.8
+            'deuteranopia_correction': deuteranopia * 0.8,  # Increased from 0.4 to 0.8
+            'tritanopia_correction': tritanopia * 0.8,  # Increased from 0.4 to 0.8
+            'brightness_adjustment': 1.0 + (max_severity * 0.1),  # Increased from 0.05 to 0.1
+            'contrast_adjustment': 1.0 + (max_severity * 0.15),  # Increased from 0.075 to 0.15
+            'saturation_adjustment': 1.0 + (max_severity * 0.2),  # Increased from 0.1 to 0.2
+            'filter_type': 'traditional',
+            'created_at': f"{time.time()}"
+        }
 
 class ColorVisionTestGenerator:
     """Generates test questions for color vision deficiency assessment"""
     
-    def __init__(self, test_images_dir: str = "test_images"):
+    def __init__(self, test_images_dir: str = "data/test_images"):
         self.test_images_dir = test_images_dir
         self.processor = ColorVisionProcessor()
+        
+        # Initialize image download service first
+        try:
+            from image_download_service import get_image_download_service
+            self.image_downloader = get_image_download_service()
+        except ImportError:
+            logging.warning("Image download service not available")
+            self.image_downloader = None
+        
         self.ensure_test_images_exist()
     
     def ensure_test_images_exist(self):
         """Ensure test images directory and sample images exist"""
         os.makedirs(self.test_images_dir, exist_ok=True)
         
-        # Generate some basic test patterns if they don't exist
-        if not os.listdir(self.test_images_dir):
+        # Check if we have enough variety of images
+        existing_images = [f for f in os.listdir(self.test_images_dir) if f.endswith(('.jpg', '.jpeg', '.png'))]
+        downloaded_images = [f for f in existing_images if f.startswith('downloaded_test_image_')]
+        
+        # Download real images if we don't have enough or if we only have generated patterns
+        if len(downloaded_images) < 15:
+            logging.info("Downloading real-world test images for better CVD testing...")
+            if self.image_downloader:
+                try:
+                    self.image_downloader.download_test_images(20, self.test_images_dir)
+                except Exception as e:
+                    logging.error(f"Failed to download test images: {e}")
+                    # Fallback to generated patterns
+                    if len(existing_images) == 0:
+                        self.generate_basic_test_images()
+            else:
+                # Fallback to generated patterns if download service unavailable
+                if len(existing_images) == 0:
+                    self.generate_basic_test_images()
+        
+        # Generate some basic test patterns if we still don't have enough images
+        if len(os.listdir(self.test_images_dir)) == 0:
             self.generate_basic_test_images()
     
     def generate_basic_test_images(self):
@@ -645,53 +732,80 @@ class ColorVisionTestGenerator:
         
         return image
     
-    def generate_test_questions(self, count: int = 20) -> List[Dict]:
+    def generate_test_questions(self, count: int = 10) -> List[Dict]:
         """
-        Generate a set of test questions for CVD assessment with validated image pairs
+        Generate a set of test questions for CVD assessment with downloaded real-world images
         
         Args:
-            count: Number of questions to generate
+            count: Number of questions to generate (default: 10)
             
         Returns:
             List of test questions with original and filtered images
         """
         questions = []
-        test_images = [f for f in os.listdir(self.test_images_dir) if f.endswith('.jpg')]
+        
+        # Get all available test images
+        all_images = [f for f in os.listdir(self.test_images_dir) if f.endswith(('.jpg', '.jpeg', '.png'))]
+        
+        # Prioritize downloaded real-world images over generated patterns
+        downloaded_images = [f for f in all_images if f.startswith('downloaded_test_image_')]
+        pattern_images = [f for f in all_images if f.startswith('test_pattern_')]
+        
+        # Use downloaded images first, then patterns if needed
+        test_images = downloaded_images + pattern_images
         
         if not test_images:
-            raise ValueError("No test images found. Run generate_basic_test_images() first.")
+            # Last resort: try to download images now
+            if self.image_downloader:
+                try:
+                    self.image_downloader.download_test_images(10, self.test_images_dir)
+                    test_images = [f for f in os.listdir(self.test_images_dir) if f.endswith(('.jpg', '.jpeg', '.png'))]
+                except Exception as e:
+                    logging.error(f"Emergency image download failed: {e}")
+            
+            if not test_images:
+                raise ValueError("No test images available. Please check image download service or generate basic patterns.")
         
         deficiency_types = ['protanopia', 'deuteranopia', 'tritanopia']
         
+        # Fixed test structure: 7 identical, 3 CVD-specific (1 for each type)
+        test_structure = (
+            ['identical'] * 7 +  # 7 questions with identical images
+            ['protanopia_specific'] +  # 1 protanopia-specific question
+            ['deuteranopia_specific'] +  # 1 deuteranopia-specific question  
+            ['tritanopia_specific']  # 1 tritanopia-specific question
+        )
+        
         for i in range(count):
-            # Select random image and deficiency type
+            # Select random image
             image_file = random.choice(test_images)
-            deficiency_type = random.choice(deficiency_types)
             image_path = os.path.join(self.test_images_dir, image_file)
             
-            # Create two scenarios with validated answers
-            if i % 3 == 0:
-                # Identical images - should look exactly the same
+            # Get the question type from our structure
+            question_type = test_structure[i % len(test_structure)]
+            
+            # Determine deficiency type and difficulty level
+            if question_type == 'identical':
+                # For identical questions, randomly pick a deficiency type (for context)
+                deficiency_type = random.choice(deficiency_types)
+                difficulty_level = 'identical'
+                
+                # Generate identical images
                 original_b64, filtered_b64 = self.processor.generate_identical_test_pair(
                     image_path, deficiency_type
                 )
                 correct_answer = True  # Images are the same
                 
-            elif i % 3 == 1:
-                # Subtle difference visible to normal vision but not CVD
+            elif question_type.endswith('_specific'):
+                # Extract the specific deficiency type
+                deficiency_type = question_type.replace('_specific', '')
+                difficulty_level = 'cvd_confusion'
+                
+                # Generate CVD confusion pair (looks same to CVD users, different to normal vision)
                 original_b64, filtered_b64 = self.processor.generate_cvd_confusion_pair(
                     image_path, deficiency_type
                 )
-                # For CVD users, these will look the same
-                # For normal vision, these will look different
                 correct_answer = False  # Images are different (for normal vision)
-                
-            else:
-                # Obviously different images
-                original_b64, filtered_b64 = self.processor.generate_test_image_pair(
-                    image_path, deficiency_type
-                )
-                correct_answer = False  # Images are different
             
             question = {
                 'question_id': f'q_{i+1}_{deficiency_type}',
@@ -699,12 +813,16 @@ class ColorVisionTestGenerator:
                 'image_filtered': filtered_b64,
                 'filter_type': deficiency_type,
                 'correct_answer': correct_answer,
-                'difficulty_level': 'identical' if i % 3 == 0 else ('cvd_confusion' if i % 3 == 1 else 'obvious_difference'),
+                'difficulty_level': difficulty_level,
+                'source_image': image_file,
+                'question_type': question_type,
                 'timestamp': None
             }
             
             questions.append(question)
         
+        logging.info(f"Generated {len(questions)} test questions using {len(test_images)} images")
+        logging.info(f"Test structure: 7 identical, 1 protanopia-specific, 1 deuteranopia-specific, 1 tritanopia-specific")
         return questions
 
 class CVDAnalyzer:
@@ -712,21 +830,27 @@ class CVDAnalyzer:
     
     def analyze_test_results(self, questions: List[Dict]) -> Dict:
         """
-        Analyze test results to determine CVD severity scores with improved accuracy
+        Analyze test results to determine CVD severity scores with max deficiency of 0.2
         
         Args:
             questions: List of answered test questions
             
         Returns:
-            Dictionary with severity scores for each type of CVD
+            Dictionary with severity scores for each type of CVD (max 0.2)
         """
-        print(f"Analyzing {len(questions)} questions")
+        print(f"Analyzing {len(questions)} questions with intensity-weighted algorithm (max deficiency: 0.2)")
         
-        # Count correct/incorrect responses by deficiency type and difficulty
+        # Track scores by deficiency type with intensity weighting
         scores = {
-            'protanopia': {'correct': 0, 'total': 0, 'cvd_confusion_errors': 0},
-            'deuteranopia': {'correct': 0, 'total': 0, 'cvd_confusion_errors': 0},
-            'tritanopia': {'correct': 0, 'total': 0, 'cvd_confusion_errors': 0}
+            'protanopia': {'total_weight': 0, 'error_weight': 0, 'confusion_errors': 0, 'specific_questions': 0},
+            'deuteranopia': {'total_weight': 0, 'error_weight': 0, 'confusion_errors': 0, 'specific_questions': 0},
+            'tritanopia': {'total_weight': 0, 'error_weight': 0, 'confusion_errors': 0, 'specific_questions': 0}
+        }
+        
+        # Define intensity weights for different question types
+        intensity_weights = {
+            'identical': 0.1,        # Very low weight - these should be easy
+            'cvd_confusion': 1.0,    # High weight - this is the key indicator for specific CVD type
         }
         
         for i, question in enumerate(questions):
@@ -734,53 +858,64 @@ class CVDAnalyzer:
                 filter_type = question.get('filter_type')
                 correct_answer = question.get('correct_answer')
                 user_response = question.get('user_response')
-                difficulty_level = question.get('difficulty_level', 'unknown')
+                difficulty_level = question.get('difficulty_level', 'identical')
+                question_type = question.get('question_type', 'identical')
                 
                 if filter_type in scores:
-                    scores[filter_type]['total'] += 1
-                    if user_response == correct_answer:
-                        scores[filter_type]['correct'] += 1
-                    else:
-                        # Track CVD confusion errors specifically
-                        if difficulty_level == 'cvd_confusion':
-                            scores[filter_type]['cvd_confusion_errors'] += 1
-                else:
-                    pass  # Unknown filter type
-            else:
-                pass  # No user response
+                    # Get intensity weight for this question type
+                    weight = intensity_weights.get(difficulty_level, 0.1)
+                    scores[filter_type]['total_weight'] += weight
+                    
+                    # Count specific questions for this CVD type
+                    if question_type == f"{filter_type}_specific":
+                        scores[filter_type]['specific_questions'] += 1
+                    
+                    if user_response != correct_answer:
+                        # Add weighted error score
+                        scores[filter_type]['error_weight'] += weight
+                        
+                        # Track confusion errors specifically (most important indicator)
+                        if difficulty_level == 'cvd_confusion' and question_type == f"{filter_type}_specific":
+                            scores[filter_type]['confusion_errors'] += 1
         
-        # Calculate severity scores with improved algorithm
+        # Calculate weighted severity scores with 0.2 maximum
         severity_scores = {}
         for deficiency_type, score_data in scores.items():
-            if score_data['total'] > 0:
-                accuracy = score_data['correct'] / score_data['total']
-                
-                # Weight CVD confusion errors more heavily as they indicate specific deficiency
-                confusion_weight = score_data.get('cvd_confusion_errors', 0) / max(score_data['total'], 1)
-                
-                # Calculate severity: base on accuracy + heavily weight confusion errors
-                base_severity = max(0, 1 - accuracy)
-                confusion_penalty = confusion_weight * 0.5  # Additional penalty for confusion errors
-                
-                severity = min(1.0, base_severity + confusion_penalty)
-            else:
-                severity = 0
+            severity = 0.0
             
+            if score_data['specific_questions'] > 0:
+                # For the new test structure, focus on the specific question for each CVD type
+                if score_data['confusion_errors'] > 0:
+                    # If user failed the specific CVD test, assign moderate deficiency
+                    severity = 0.15  # 75% of max (0.2)
+                else:
+                    # If user passed the specific CVD test, very low deficiency
+                    severity = 0.0
+            
+            # Add small penalty for errors in identical questions (should be easy)
+            if score_data['total_weight'] > 0:
+                identical_error_rate = score_data['error_weight'] / score_data['total_weight']
+                severity += identical_error_rate * 0.05  # Max 5% additional from identical questions
+            
+            # Cap at maximum deficiency of 0.2
+            severity = min(0.2, severity)
             severity_scores[deficiency_type] = round(severity, 2)
         
-        # Determine overall severity
+        # Determine overall severity based on highest individual score
         max_severity = max(severity_scores.values()) if severity_scores.values() else 0
-        if max_severity < 0.25:
+        
+        # Keep original thresholds for severity classification (before 0.2 cap was applied)
+        if max_severity < 0.15:
             overall = 'none'
-        elif max_severity < 0.5:
+        elif max_severity < 0.35:
             overall = 'mild'
-        elif max_severity < 0.75:
+        elif max_severity < 0.65:
             overall = 'moderate'
         else:
             overall = 'severe'
         
-        # Determine if there's no blindness
-        no_blindness = 1 if max_severity < 0.2 else 0
+        # Determine if there's no blindness (more conservative threshold)
+        no_blindness = 1 if max_severity < 0.1 else 0
         
         result = {
             'protanopia': severity_scores.get('protanopia', 0),
@@ -790,6 +925,7 @@ class CVDAnalyzer:
             'overall_severity': overall
         }
         
+        logging.info(f"CVD Analysis Results (max 0.2): {result}")
         return result
     
     def generate_correction_filter(self, severity_scores: Dict) -> Dict:
@@ -812,12 +948,12 @@ class CVDAnalyzer:
         max_severity = max(numeric_scores) if numeric_scores else 0
         
         return {
-            'protanopia_correction': severity_scores.get('protanopia', 0) * 0.4,  # Reduced from 0.8 to 0.4 (50% reduction)
-            'deuteranopia_correction': severity_scores.get('deuteranopia', 0) * 0.4,  # Reduced from 0.8 to 0.4 (50% reduction)
-            'tritanopia_correction': severity_scores.get('tritanopia', 0) * 0.4,  # Reduced from 0.8 to 0.4 (50% reduction)
-            'brightness_adjustment': 1.0 + (max_severity * 0.05),  # Reduced from 0.1 to 0.05 (50% reduction)
-            'contrast_adjustment': 1.0 + (max_severity * 0.075),  # Reduced from 0.15 to 0.075 (50% reduction)
-            'saturation_adjustment': 1.0 + (max_severity * 0.1)  # Reduced from 0.2 to 0.1 (50% reduction)
+            'protanopia_correction': severity_scores.get('protanopia', 0) * 0.4,  # Reduced from 0.8 to 0.4 for gentler correction
+            'deuteranopia_correction': severity_scores.get('deuteranopia', 0) * 0.4,  # Reduced from 0.8 to 0.4 for gentler correction
+            'tritanopia_correction': severity_scores.get('tritanopia', 0) * 0.4,  # Reduced from 0.8 to 0.4 for gentler correction
+            'brightness_adjustment': 1.0,  # Don't change brightness as requested
+            'contrast_adjustment': 1.0,  # Don't change contrast
+            'saturation_adjustment': 1.0  # Don't change saturation as requested
         }
     
     def apply_gan_correction_filter(self, image_data: str, severity_scores: Dict) -> Optional[str]:

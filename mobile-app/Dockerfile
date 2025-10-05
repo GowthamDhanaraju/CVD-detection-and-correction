@@ -15,14 +15,17 @@ RUN apk add --no-cache \
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with npm (yarn.lock not required)
-RUN npm install -g @expo/cli@latest && \
-    npm ci --only=production && \
+# Install dependencies
+RUN npm ci --only=production && \
+    npm install -g @expo/cli@latest && \
     npx expo install typescript && \
     npm cache clean --force
 
 # Copy application code
 COPY . .
+
+# Build the web version for production
+RUN npm run web:build || npx expo export:web
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
@@ -37,5 +40,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080 || exit 1
 
-# Start the application in web mode
-CMD ["npx", "expo", "start", "--web", "--port", "8080"]
+# Start the application in web mode for production
+CMD ["npx", "expo", "start", "--web", "--port", "8080", "--host", "0.0.0.0"]

@@ -124,6 +124,7 @@ class CorrectionRequest(BaseModel):
 # Color vision deficiency processing imports
 from dalton_lens_utils import ColorVisionTestGenerator, CVDAnalyzer, ColorVisionProcessor
 from realtime_filter_methods import patch_color_vision_processor
+from image_download_service import get_image_download_service
 
 # Apply the real-time filter methods patch
 patch_color_vision_processor()
@@ -132,6 +133,7 @@ patch_color_vision_processor()
 test_generator = ColorVisionTestGenerator()
 cvd_analyzer = CVDAnalyzer()
 color_processor = ColorVisionProcessor()
+image_downloader = get_image_download_service()
 
 # Health check endpoints
 @app.get("/", response_model=HealthCheck)
@@ -194,8 +196,8 @@ async def update_user_profile(user_id: str, profile: UserProfile):
 
 # Color Vision Test endpoints
 @app.get("/api/v1/color-test/questions")
-async def get_test_questions(test_type: str = 'ishihara', count: int = 20):
-    """Generate test questions for color vision assessment"""
+async def get_test_questions(test_type: str = 'ishihara', count: int = 10):
+    """Generate test questions for color vision assessment (default: 10 questions)"""
     try:
         questions = test_generator.generate_test_questions(count)
         test_id = f"test_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{len(questions)}"
@@ -218,6 +220,37 @@ async def get_test_questions(test_type: str = 'ishihara', count: int = 20):
         return test_data
         
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/test-images/refresh")
+async def refresh_test_images():
+    """Manually refresh test images by downloading new ones"""
+    try:
+        downloaded_paths = image_downloader.refresh_test_images()
+        stats = image_downloader.get_image_variety_stats()
+        
+        return {
+            "message": "Test images refreshed successfully",
+            "downloaded_images": len(downloaded_paths),
+            "total_images": stats["total_images"],
+            "image_stats": stats,
+            "status": "success"
+        }
+    except Exception as e:
+        logging.error(f"Error refreshing test images: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/test-images/stats")
+async def get_test_image_stats():
+    """Get statistics about current test images"""
+    try:
+        stats = image_downloader.get_image_variety_stats()
+        return {
+            "stats": stats,
+            "status": "success"
+        }
+    except Exception as e:
+        logging.error(f"Error getting test image stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/gan/filter-parameters")
@@ -367,6 +400,53 @@ async def complete_test(test_id: str):
             timestamp=datetime.now().isoformat()
         )
         
+        # AUTOMATICALLY GENERATE AND ACTIVATE FILTER BASED ON TEST RESULTS
+        logging.info(f"Auto-generating filter for user {results.user_id} based on test results")
+        
+        try:
+            # Generate a new filter automatically
+            filter_id = f"filter_{results.user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            # Deactivate old filters for this user
+            filters_dir = data_manager.base_path / "filters"
+            if filters_dir.exists():
+                for filter_file in filters_dir.glob("*.json"):
+                    try:
+                        with open(filter_file, 'r') as f:
+                            old_filter = json.load(f)
+                            if old_filter.get("user_id") == results.user_id:
+                                old_filter["is_active"] = False
+                                old_filter["updated_at"] = datetime.now().isoformat()
+                                with open(filter_file, 'w') as f2:
+                                    json.dump(old_filter, f2, indent=2)
+                                logging.info(f"Deactivated old filter: {old_filter.get('filter_id')}")
+                    except Exception as e:
+                        logging.warning(f"Error deactivating old filter: {e}")
+            
+            # Create new active filter
+            filter_data = CameraFilter(
+                filter_id=filter_id,
+                user_id=results.user_id,
+                filter_params=FilterParams(**filter_params),
+                is_active=True,
+                created_at=datetime.now().isoformat(),
+                updated_at=datetime.now().isoformat()
+            )
+            
+            # Save new filter
+            filter_file = data_manager.base_path / "filters" / f"{filter_id}.json"
+            filter_file.parent.mkdir(exist_ok=True)
+            
+            with open(filter_file, 'w') as f:
+                json.dump(filter_data.dict(), f, indent=2)
+            
+            logging.info(f"Created and activated new filter: {filter_id} for user {results.user_id}")
+            logging.info(f"Filter parameters: {filter_params}")
+            
+        except Exception as filter_error:
+            logging.error(f"Error auto-generating filter: {filter_error}")
+            # Don't fail the test completion if filter generation fails
+        
         # Save results
         results_file = data_manager.base_path / "results" / f"{test_id}_results.json"
         results_file.parent.mkdir(exist_ok=True)
@@ -392,6 +472,33 @@ async def generate_filter(results: CVDResults):
     """Generate a camera filter based on test results"""
     try:
         filter_id = f"filter_{results.user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Ensure we're using the most recent test results
+        # Get all user results and find the most recent one
+        results_dir = data_manager.base_path / "results"
+        if results_dir.exists():
+            user_results = []
+            for results_file in results_dir.glob("*_results.json"):
+                try:
+                    with open(results_file, 'r') as f:
+                        result_data = json.load(f)
+                        if result_data.get("user_id") == results.user_id:
+                            user_results.append(result_data)
+                except Exception:
+                    continue
+            
+            # Sort by timestamp and use the most recent
+            if user_results:
+                user_results.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+                latest_results = user_results[0]
+                
+                # Update the results with the latest data
+                results.protanopia = latest_results.get("protanopia", results.protanopia)
+                results.deuteranopia = latest_results.get("deuteranopia", results.deuteranopia)
+                results.tritanopia = latest_results.get("tritanopia", results.tritanopia)
+                results.overall_severity = latest_results.get("overall_severity", results.overall_severity)
+                
+                logging.info(f"Using latest test results from {latest_results.get('timestamp')} for filter generation")
         
         filter_data = CameraFilter(
             filter_id=filter_id,
@@ -434,6 +541,130 @@ async def get_user_filters(user_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/v1/filter/regenerate/{user_id}")
+async def regenerate_user_filter(user_id: str):
+    """Force regenerate filter for user based on their latest test results"""
+    try:
+        logging.info(f"Force regenerating filter for user {user_id}")
+        
+        # Find latest test results for this user
+        results_dir = data_manager.base_path / "results"
+        if not results_dir.exists():
+            raise HTTPException(status_code=404, detail="No test results found")
+        
+        latest_result = None
+        latest_timestamp = ""
+        for results_file in results_dir.glob("*_results.json"):
+            try:
+                with open(results_file, 'r') as f:
+                    result_data = json.load(f)
+                    if (result_data.get("user_id") == user_id and 
+                        result_data.get("timestamp", "") > latest_timestamp):
+                        latest_result = result_data
+                        latest_timestamp = result_data.get("timestamp", "")
+            except Exception:
+                continue
+        
+        if not latest_result:
+            raise HTTPException(status_code=404, detail="No test results found for user")
+        
+        # Use the latest test results to generate a new filter
+        severity_scores = {
+            "protanopia": latest_result.get("protanopia", 0),
+            "deuteranopia": latest_result.get("deuteranopia", 0),
+            "tritanopia": latest_result.get("tritanopia", 0)
+        }
+        
+        # Generate new filter parameters
+        filter_params = cvd_analyzer.generate_correction_filter(severity_scores)
+        
+        # Add GAN recommendations if available
+        gan_recommendations = color_processor.get_gan_filter_recommendations(severity_scores)
+        if gan_recommendations:
+            filter_params.update({
+                "gan_recommendations": gan_recommendations,
+                "filter_method": "GAN+Traditional",
+                "ai_enhanced": True
+            })
+        else:
+            filter_params.update({
+                "filter_method": "Traditional",
+                "ai_enhanced": False
+            })
+        
+        # Deactivate old filters
+        filters_dir = data_manager.base_path / "filters"
+        if filters_dir.exists():
+            for filter_file in filters_dir.glob("*.json"):
+                try:
+                    with open(filter_file, 'r') as f:
+                        old_filter = json.load(f)
+                        if old_filter.get("user_id") == user_id:
+                            old_filter["is_active"] = False
+                            old_filter["updated_at"] = datetime.now().isoformat()
+                            with open(filter_file, 'w') as f2:
+                                json.dump(old_filter, f2, indent=2)
+                except Exception as e:
+                    logging.warning(f"Error deactivating old filter: {e}")
+        
+        # Create new filter
+        filter_id = f"filter_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_regenerated"
+        filter_data = CameraFilter(
+            filter_id=filter_id,
+            user_id=user_id,
+            filter_params=FilterParams(**filter_params),
+            is_active=True,
+            created_at=datetime.now().isoformat(),
+            updated_at=datetime.now().isoformat()
+        )
+        
+        # Save filter
+        filter_file = data_manager.base_path / "filters" / f"{filter_id}.json"
+        filter_file.parent.mkdir(exist_ok=True)
+        
+        with open(filter_file, 'w') as f:
+            json.dump(filter_data.dict(), f, indent=2)
+        
+        logging.info(f"Regenerated filter {filter_id} for user {user_id} with scores: {severity_scores}")
+        logging.info(f"Filter parameters: {filter_params}")
+        
+        return {
+            "status": "success",
+            "filter_id": filter_id,
+            "filter_data": filter_data.dict(),
+            "source_test_timestamp": latest_timestamp,
+            "severity_scores": severity_scores
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error regenerating filter: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/filter/active/{user_id}")
+async def get_active_filter(user_id: str):
+    """Get the currently active filter for a user"""
+    try:
+        filters_dir = data_manager.base_path / "filters"
+        if not filters_dir.exists():
+            return None
+        
+        for filter_file in filters_dir.glob("*.json"):
+            with open(filter_file, 'r') as f:
+                filter_data = json.load(f)
+                if (filter_data.get("user_id") == user_id and 
+                    filter_data.get("is_active", False)):
+                    logging.info(f"Found active filter for user {user_id}: {filter_data.get('filter_id')}")
+                    return filter_data
+        
+        logging.info(f"No active filter found for user {user_id}")
+        return None
+        
+    except Exception as e:
+        logging.error(f"Error getting active filter: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.put("/api/v1/filter/{filter_id}")
 async def update_filter_params(filter_id: str, params: FilterParams):
     """Update filter parameters"""
@@ -462,7 +693,7 @@ async def update_filter_params(filter_id: str, params: FilterParams):
 # Results and history endpoints
 @app.get("/api/v1/results/history/{user_id}")
 async def get_user_test_history(user_id: str):
-    """Get test history for a user"""
+    """Get test history for a user with enhanced details"""
     try:
         results_dir = data_manager.base_path / "results"
         if not results_dir.exists():
@@ -473,7 +704,34 @@ async def get_user_test_history(user_id: str):
             with open(results_file, 'r') as f:
                 results_data = json.load(f)
                 if results_data.get("user_id") == user_id:
-                    user_results.append(results_data)
+                    
+                    # Load corresponding test data for question details
+                    test_id = results_data.get("test_id")
+                    test_file = data_manager.base_path / "tests" / f"{test_id}.json"
+                    
+                    enhanced_result = results_data.copy()
+                    enhanced_result["has_question_details"] = False
+                    
+                    if test_file.exists():
+                        try:
+                            with open(test_file, 'r') as tf:
+                                test_data = json.load(tf)
+                                
+                            questions = test_data.get("questions", [])
+                            answered_count = len([q for q in questions if q.get('user_response') is not None])
+                            correct_count = len([q for q in questions if q.get('user_response') == q.get('correct_answer')])
+                            
+                            enhanced_result.update({
+                                "total_questions": len(questions),
+                                "answered_questions": answered_count,
+                                "correct_answers": correct_count,
+                                "accuracy_percentage": round((correct_count / answered_count * 100) if answered_count > 0 else 0, 1),
+                                "has_question_details": True
+                            })
+                        except Exception as e:
+                            logging.warning(f"Could not load test details for {test_id}: {e}")
+                    
+                    user_results.append(enhanced_result)
         
         # Sort by timestamp (newest first)
         user_results.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
@@ -482,16 +740,113 @@ async def get_user_test_history(user_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/v1/results/latest/{user_id}")
+async def get_latest_user_results(user_id: str):
+    """Get the most recent test results for a user"""
+    try:
+        results_dir = data_manager.base_path / "results"
+        if not results_dir.exists():
+            raise HTTPException(status_code=404, detail="No results found")
+        
+        user_results = []
+        for results_file in results_dir.glob("*_results.json"):
+            with open(results_file, 'r') as f:
+                results_data = json.load(f)
+                if results_data.get("user_id") == user_id:
+                    user_results.append(results_data)
+        
+        if not user_results:
+            raise HTTPException(status_code=404, detail="No results found for user")
+        
+        # Sort by timestamp and return the most recent
+        user_results.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        latest_result = user_results[0]
+        
+        # Get detailed test data
+        test_id = latest_result.get("test_id")
+        if test_id:
+            return await get_test_results(test_id)
+        else:
+            return latest_result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/v1/results/{test_id}")
 async def get_test_results(test_id: str):
-    """Get results for a specific test"""
+    """Get detailed results for a specific test including question-by-question breakdown"""
     try:
+        # Load test results
         results_file = data_manager.base_path / "results" / f"{test_id}_results.json"
         if not results_file.exists():
             raise HTTPException(status_code=404, detail="Results not found")
         
         with open(results_file, 'r') as f:
-            return json.load(f)
+            results_data = json.load(f)
+        
+        # Load test data for question details
+        test_file = data_manager.base_path / "tests" / f"{test_id}.json"
+        question_details = []
+        
+        if test_file.exists():
+            with open(test_file, 'r') as f:
+                test_data = json.load(f)
+                
+            # Add question-by-question breakdown
+            for i, question in enumerate(test_data.get("questions", [])):
+                user_response = question.get('user_response')
+                correct_answer = question.get('correct_answer')
+                is_correct = user_response == correct_answer if user_response is not None else None
+                
+                question_detail = {
+                    "question_number": i + 1,
+                    "question_id": question.get('question_id'),
+                    "filter_type": question.get('filter_type'),
+                    "difficulty_level": question.get('difficulty_level', 'unknown'),
+                    "correct_answer": correct_answer,
+                    "user_response": user_response,
+                    "is_correct": is_correct,
+                    "answered": user_response is not None,
+                    "source_image": question.get('source_image', 'unknown')
+                }
+                question_details.append(question_detail)
+        
+        # Enhanced results with question breakdown
+        enhanced_results = {
+            **results_data,
+            "question_breakdown": question_details,
+            "total_questions": len(question_details),
+            "answered_questions": len([q for q in question_details if q["answered"]]),
+            "correct_answers": len([q for q in question_details if q["is_correct"] == True]),
+            "accuracy_by_type": {},
+            "difficulty_analysis": {}
+        }
+        
+        # Calculate accuracy by CVD type
+        for cvd_type in ['protanopia', 'deuteranopia', 'tritanopia']:
+            type_questions = [q for q in question_details if q["filter_type"] == cvd_type and q["answered"]]
+            if type_questions:
+                correct_count = len([q for q in type_questions if q["is_correct"] == True])
+                enhanced_results["accuracy_by_type"][cvd_type] = {
+                    "total": len(type_questions),
+                    "correct": correct_count,
+                    "accuracy": round(correct_count / len(type_questions) * 100, 1)
+                }
+        
+        # Calculate accuracy by difficulty
+        for difficulty in ['identical', 'cvd_confusion', 'obvious_difference']:
+            diff_questions = [q for q in question_details if q["difficulty_level"] == difficulty and q["answered"]]
+            if diff_questions:
+                correct_count = len([q for q in diff_questions if q["is_correct"] == True])
+                enhanced_results["difficulty_analysis"][difficulty] = {
+                    "total": len(diff_questions),
+                    "correct": correct_count,
+                    "accuracy": round(correct_count / len(diff_questions) * 100, 1)
+                }
+        
+        return enhanced_results
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -536,25 +891,79 @@ async def apply_dalton_filter(
 async def apply_correction_filter(request: CorrectionRequest):
     """Apply GAN-based or traditional correction filter to an image"""
     try:
+        # If no severity scores provided, try to get from user's latest active filter
+        severity_scores = request.severity_scores
+        if not severity_scores or all(v == 0 for v in severity_scores.values()):
+            logging.info("No severity scores provided, looking for user's active filter")
+            
+            # Try to find user's active filter based on image or default user
+            user_id = getattr(request, 'user_id', 'default_user')  # You might need to add user_id to request
+            
+            filters_dir = data_manager.base_path / "filters"
+            if filters_dir.exists():
+                for filter_file in filters_dir.glob("*.json"):
+                    try:
+                        with open(filter_file, 'r') as f:
+                            filter_data = json.load(f)
+                            if (filter_data.get("user_id") == user_id and 
+                                filter_data.get("is_active", False)):
+                                # Extract severity scores from filter params
+                                filter_params = filter_data.get("filter_params", {})
+                                severity_scores = {
+                                    "protanopia": filter_params.get("protanopia_correction", 0) / 0.8,  # Reverse the 0.8 multiplier
+                                    "deuteranopia": filter_params.get("deuteranopia_correction", 0) / 0.8,
+                                    "tritanopia": filter_params.get("tritanopia_correction", 0) / 0.8
+                                }
+                                logging.info(f"Using active filter {filter_data.get('filter_id')} with scores: {severity_scores}")
+                                break
+                    except Exception as e:
+                        logging.warning(f"Error reading filter file: {e}")
+            
+            # If still no scores found, get latest test results
+            if not severity_scores or all(v == 0 for v in severity_scores.values()):
+                logging.info("No active filter found, looking for latest test results")
+                results_dir = data_manager.base_path / "results"
+                if results_dir.exists():
+                    latest_result = None
+                    latest_timestamp = ""
+                    for results_file in results_dir.glob("*_results.json"):
+                        try:
+                            with open(results_file, 'r') as f:
+                                result_data = json.load(f)
+                                if (result_data.get("user_id") == user_id and 
+                                    result_data.get("timestamp", "") > latest_timestamp):
+                                    latest_result = result_data
+                                    latest_timestamp = result_data.get("timestamp", "")
+                        except Exception:
+                            continue
+                    
+                    if latest_result:
+                        severity_scores = {
+                            "protanopia": latest_result.get("protanopia", 0),
+                            "deuteranopia": latest_result.get("deuteranopia", 0),
+                            "tritanopia": latest_result.get("tritanopia", 0)
+                        }
+                        logging.info(f"Using latest test results with scores: {severity_scores}")
+        
         corrected_image = None
         filter_method = "unknown"
         
         if request.correction_type == "gan" and color_processor.gan_generator:
             # Use GAN filter only
             corrected_image = color_processor.apply_gan_correction_filter(
-                request.image_data, request.severity_scores
+                request.image_data, severity_scores
             )
             filter_method = "GAN"
         elif request.correction_type == "traditional":
             # Use traditional filter only
             corrected_image = color_processor.apply_traditional_correction_filter(
-                request.image_data, request.severity_scores
+                request.image_data, severity_scores
             )
             filter_method = "Traditional"
         else:
             # Hybrid approach (default)
             corrected_image = color_processor.apply_hybrid_correction_filter(
-                request.image_data, request.severity_scores, request.use_gan
+                request.image_data, severity_scores, request.use_gan
             )
             filter_method = "Hybrid (GAN+Traditional)" if color_processor.gan_generator else "Traditional"
         
@@ -562,17 +971,20 @@ async def apply_correction_filter(request: CorrectionRequest):
             raise HTTPException(status_code=500, detail="Failed to apply correction filter")
         
         # Get GAN recommendations if available
-        gan_recommendations = color_processor.get_gan_filter_recommendations(request.severity_scores)
+        gan_recommendations = color_processor.get_gan_filter_recommendations(severity_scores)
+        
+        logging.info(f"Applied {filter_method} filter with scores: {severity_scores}")
         
         return {
             "corrected_image": corrected_image,
             "filter_method": filter_method,
-            "severity_scores": request.severity_scores,
+            "severity_scores": severity_scores,
             "gan_recommendations": gan_recommendations,
             "status": "success"
         }
         
     except Exception as e:
+        logging.error(f"Error applying correction filter: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Feedback endpoints with Kafka integration

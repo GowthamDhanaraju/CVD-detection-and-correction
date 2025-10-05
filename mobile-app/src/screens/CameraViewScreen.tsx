@@ -28,6 +28,7 @@ interface FilterOption {
   icon: string;
 }
 
+// Predefined filter options (simplified - removed system filter)
 const FILTER_OPTIONS: FilterOption[] = [
   {
     id: 'off',
@@ -47,7 +48,7 @@ const FILTER_OPTIONS: FilterOption[] = [
   {
     id: 'smart_ai_filter',
     name: 'Smart AI Filter',
-    description: 'AI-powered real-time filter using GAN technology',
+    description: 'AI-powered filter based on your test results',
     params: {
       protanopia_correction: 0.7,
       deuteranopia_correction: 0.7,
@@ -58,21 +59,6 @@ const FILTER_OPTIONS: FilterOption[] = [
     },
     color: '#007bff',
     icon: '🤖',
-  },
-  {
-    id: 'system_filter',
-    name: 'System Filter',
-    description: 'Traditional filter based on your test results',
-    params: {
-      protanopia_correction: 0.6,
-      deuteranopia_correction: 0.6,
-      tritanopia_correction: 0.6,
-      brightness_adjustment: 1.1,
-      contrast_adjustment: 1.2,
-      saturation_adjustment: 1.2,
-    },
-    color: '#28a745',
-    icon: '⚙️',
   },
 ];
 
@@ -150,11 +136,11 @@ const CameraViewScreen = () => {
         const results = JSON.parse(latestResults);
         setTestResults(results);
         
-        // Auto-select system filter if user has test results
+        // Auto-select AI filter if user has test results
         if (results.overall_severity !== 'none') {
-          const systemFilter = FILTER_OPTIONS.find(f => f.id === 'system_filter');
-          if (systemFilter) {
-            setSelectedFilter(systemFilter);
+          const aiFilter = FILTER_OPTIONS.find(f => f.id === 'smart_ai_filter');
+          if (aiFilter) {
+            setSelectedFilter(aiFilter);
           }
         }
         console.log('Loaded filter based on test results');
@@ -212,7 +198,7 @@ const CameraViewScreen = () => {
     }
   };
 
-  // Generate CSS filter string for color correction
+  // Generate CSS filter string for color correction (reduced intensity)
   const generateCSSFilter = (): string => {
     const filters = [];
     
@@ -224,39 +210,30 @@ const CameraViewScreen = () => {
     }
     
     if (selectedFilter.id !== 'off') {
-      // Enhanced color vision corrections
+      // Reduced intensity RGB corrections based on test results only
       if (params.protanopia_correction > 0) {
-        filters.push(`hue-rotate(${params.protanopia_correction * 60}deg)`);
-        if (params.sepia_amount) {
-          filters.push(`sepia(${params.sepia_amount})`);
-        } else {
-          filters.push(`sepia(${params.protanopia_correction * 0.3})`);
-        }
+        // Red-green correction with reduced intensity
+        const redAdjust = params.protanopia_correction * 0.3; // Reduced from 0.6
+        filters.push(`hue-rotate(${redAdjust * 30}deg)`); // Reduced from 60deg
       }
       
       if (params.deuteranopia_correction > 0) {
-        filters.push(`saturate(${1 + params.deuteranopia_correction * 1.5})`);
-        filters.push(`contrast(${1 + params.deuteranopia_correction * 0.4})`);
+        // Green correction with reduced intensity
+        const greenAdjust = params.deuteranopia_correction * 0.4; // Reduced intensity
+        filters.push(`saturate(${1 + greenAdjust * 0.8})`); // Reduced from 1.5
       }
       
       if (params.tritanopia_correction > 0) {
-        filters.push(`contrast(${1 + params.tritanopia_correction * 0.6})`);
-        filters.push(`brightness(${1 + params.tritanopia_correction * 0.2})`);
+        // Blue-yellow correction with reduced intensity
+        const blueAdjust = params.tritanopia_correction * 0.3; // Reduced intensity
         const hueAdjust = params.hue_rotation ? 
-          -params.hue_rotation : 
-          -params.tritanopia_correction * 15;
+          -params.hue_rotation * 0.5 : // Reduced rotation
+          -blueAdjust * 8; // Reduced from 15
         filters.push(`hue-rotate(${hueAdjust}deg)`);
       }
       
-      // Apply adjustment filters
-      filters.push(`brightness(${params.brightness_adjustment})`);
-      filters.push(`contrast(${params.contrast_adjustment})`);
-      filters.push(`saturate(${params.saturation_adjustment})`);
-      
-      // Apply additional GAN-specific filters if available
-      if (params.hue_rotation && params.hue_rotation !== 0) {
-        filters.push(`hue-rotate(${params.hue_rotation}deg)`);
-      }
+      // Keep brightness and saturation unchanged (don't modify these)
+      // Only apply RGB value adjustments based on test results
     }
     
     return filters.join(' ');
@@ -287,24 +264,6 @@ const CameraViewScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Feedback Button */}
-      <FeedbackButton 
-        pageName="camera_filter" 
-        context={{
-          selectedFilter: selectedFilter.id,
-          filterApplied: selectedFilter.id !== 'off',
-          filterName: selectedFilter.name
-        }}
-        filterDetails={{
-          selectedFilter: selectedFilter,
-          filterParams: selectedFilter.params,
-          needsMoreBlue: false,
-          needsMoreRed: false,
-          needsMoreGreen: false,
-        }}
-        recentTestResults={recentTestResults}
-      />
-
       {/* Camera View */}
       <View style={styles.cameraContainer}>
         <CameraView
@@ -338,17 +297,18 @@ const CameraViewScreen = () => {
         </View>
       </View>
 
-      {/* Filter Selection Panel */}
+      {/* Filter Selection Panel - Compact Design */}
       <View style={styles.controlsContainer}>
-        <Text style={styles.controlsTitle}>Choose Your Filter</Text>
+        <Text style={styles.controlsTitle}>Filter & Feedback</Text>
         
-        <View style={styles.filterGrid}>
+        {/* Filter Selection Buttons - Tight together */}
+        <View style={styles.filterButtonsRow}>
           {FILTER_OPTIONS.map((filter) => (
             <TouchableOpacity
               key={filter.id}
               style={[
-                styles.filterCard,
-                selectedFilter.id === filter.id && styles.filterCardActive,
+                styles.compactFilterCard,
+                selectedFilter.id === filter.id && styles.compactFilterCardActive,
                 { borderColor: filter.color }
               ]}
               onPress={() => {
@@ -359,33 +319,34 @@ const CameraViewScreen = () => {
                 }
               }}
             >
-              <Text style={styles.filterCardEmoji}>{filter.icon}</Text>
-              <Text style={styles.filterCardName}>{filter.name}</Text>
-              <Text style={styles.filterCardDescription}>{filter.description}</Text>
+              <Text style={styles.compactFilterEmoji}>{filter.icon}</Text>
+              <Text style={styles.compactFilterName}>{filter.name}</Text>
               {/* Show GAN status for Smart AI Filter */}
               {filter.id === 'smart_ai_filter' && (
-                <Text style={[styles.ganStatusText, { 
+                <Text style={[styles.compactGanStatusText, { 
                   color: ganFilterParams ? '#28a745' : '#ffc107' 
                 }]}>
-                  {ganFilterParams ? '🤖 GAN Active' : isLoadingGANParams ? '⏳ Loading...' : '🔄 Tap to refresh'}
+                  {ganFilterParams ? 'AI' : isLoadingGANParams ? '...' : '🔄'}
                 </Text>
               )}
             </TouchableOpacity>
           ))}
         </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.secondaryButton} onPress={saveCurrentFilter}>
-            <Text style={styles.secondaryButtonText}>💾 Save Filter</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
+        
+        {/* Feedback Button - Below filters */}
+        <View style={styles.feedbackButtonRow}>
+          <FeedbackButton 
+            pageName="camera_filter" 
+            context={{
+              selectedFilter: selectedFilter.id,
+              filterApplied: selectedFilter.id !== 'off',
+              filterName: selectedFilter.name,
+              filterIntensity: 'reduced',
+              testResults: recentTestResults
+            }}
+            recentTestResults={recentTestResults}
+            style={styles.compactFeedbackButton}
+          />
         </View>
       </View>
     </View>
@@ -497,17 +458,72 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   controlsContainer: {
-    backgroundColor: 'rgba(0,0,0,0.95)',
-    paddingTop: 20,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    paddingVertical: 15,
     paddingHorizontal: 20,
-    paddingBottom: 40,
   },
   controlsTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 20,
+    marginBottom: 15,
     textAlign: 'center',
+  },
+  filterButtonsRow: {
+    flexDirection: 'row',
+    gap: 15,
+    marginBottom: 15,
+  },
+  feedbackButtonRow: {
+    flexDirection: 'row',
+  },
+  compactControlsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  compactFilterCard: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    height: 65,
+    flex: 1,
+  },
+  compactFilterCardActive: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderColor: '#007AFF',
+    transform: [{ scale: 1.02 }],
+  },
+  compactFilterEmoji: {
+    fontSize: 18,
+    marginBottom: 4,
+  },
+  compactFilterName: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+  },
+  compactGanStatusText: {
+    fontSize: 8,
+    marginTop: 2,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  compactFeedbackButton: {
+    backgroundColor: '#2196F3',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    height: 50,
+    flex: 1,
   },
   filterGrid: {
     flexDirection: 'row',
@@ -610,6 +626,20 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'center',
     fontWeight: '500',
+  },
+  feedbackSection: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  feedbackTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    marginBottom: 12,
+    textAlign: 'center',
   },
 });
 

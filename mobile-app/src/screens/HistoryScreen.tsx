@@ -173,45 +173,69 @@ const HistoryScreen: React.FC = () => {
   };
 
   const clearHistory = () => {
+    console.log('clearHistory function called');
+    
     Alert.alert(
       'Clear History',
       'Are you sure you want to clear all test history? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Clear',
+          text: 'Clear All',
           style: 'destructive',
           onPress: async () => {
+            console.log('User confirmed clear history');
             try {
-              // Clear the old format storage
-              await AsyncStorage.removeItem('cvdTestResults');
+              setLoading(true);
+              console.log('Starting history clear process...');
               
-              // Get current user profile to clear user-specific data
-              const currentProfile = await AsyncStorage.getItem('userProfile');
-              if (currentProfile) {
-                const profile = JSON.parse(currentProfile);
-                // Clear user-specific results
-                await AsyncStorage.removeItem(`cvd_results_${profile.user_id}`);
+              // Get all keys and filter test-related ones
+              const allKeys = await AsyncStorage.getAllKeys();
+              const testKeys = allKeys.filter(key => 
+                key.startsWith('testQuestions_') || 
+                key.startsWith('cvd_results_') ||
+                key.includes('cvdTestResults') ||
+                key.includes('latestTestResults') ||
+                key.includes('latest_cvd_result')
+              );
+              
+              console.log('Test keys to remove:', testKeys);
+              
+              // Remove test-related keys
+              if (testKeys.length > 0) {
+                await AsyncStorage.multiRemove(testKeys);
+                console.log('Test keys removed');
               }
               
-              // Clear latest results
-              await AsyncStorage.removeItem('latestTestResults');
-              await AsyncStorage.removeItem('latest_cvd_result');
+              // Also remove legacy keys
+              const legacyKeys = [
+                'cvdTestResults',
+                'latestTestResults', 
+                'latest_cvd_result',
+              ];
               
-              // Clear individual test questions
-              for (const result of testResults) {
-                await AsyncStorage.removeItem(`testQuestions_${result.test_id}`);
-              }
+              await AsyncStorage.multiRemove(legacyKeys);
+              console.log('Legacy keys removed');
               
-              // Clear any saved filter settings
-              await AsyncStorage.removeItem('userFilterSettings');
-              
-              // Update UI
+              // Update UI immediately
               setTestResults([]);
+              setSelectedTest(null);
+              setTestQuestions([]);
+              
+              console.log('UI state updated');
+              
+              // Force reload
+              await loadHistory();
+              console.log('History reloaded');
+              
               Alert.alert('Success', 'Test history cleared successfully.');
+              console.log('Clear completed successfully');
+              
             } catch (error) {
               console.error('Error clearing history:', error);
               Alert.alert('Error', 'Failed to clear history. Please try again.');
+            } finally {
+              setLoading(false);
             }
           },
         },
@@ -376,15 +400,46 @@ const HistoryScreen: React.FC = () => {
         )}
       </View>
 
-      {testResults.length > 0 && (
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.clearButton}
-            onPress={clearHistory}>
-            <Text style={styles.clearButtonText}>Clear History</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <View style={styles.headerActions}>
+        <TouchableOpacity
+          style={styles.clearButton}
+          onPress={() => {
+            console.log('Clear button pressed, testResults.length:', testResults.length);
+            try {
+              clearHistory();
+            } catch (error) {
+              console.error('Error calling clearHistory:', error);
+            }
+          }}>
+          <Text style={styles.clearButtonText}>Clear History ({testResults.length})</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.clearButton, { backgroundColor: '#FF6B6B', marginLeft: 10 }]}
+          onPress={() => {
+            Alert.alert(
+              'Reset App',
+              'This will clear ALL data including your profile and return you to the welcome screen. Are you sure?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Reset Everything',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await AsyncStorage.clear();
+                      Alert.alert('Reset Complete', 'Please restart the app to see the welcome screen.');
+                    } catch (error) {
+                      console.error('Error resetting app:', error);
+                    }
+                  }
+                }
+              ]
+            );
+          }}>
+          <Text style={styles.clearButtonText}>Reset App</Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         data={testResults}
@@ -441,12 +496,23 @@ const styles = StyleSheet.create({
   headerActions: {
     padding: 20,
     alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
   clearButton: {
     backgroundColor: '#F44336',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 6,
+    minHeight: 40,
+    minWidth: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   clearButtonText: {
     color: 'white',

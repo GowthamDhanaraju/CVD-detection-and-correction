@@ -38,43 +38,56 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
   filterDetails,
   recentTestResults,
 }) => {
-  const [feedbackType, setFeedbackType] = useState<'rating' | 'comment' | 'bug_report' | 'feature_request'>('rating');
-  const [rating, setRating] = useState<number>(0);
-  const [comment, setComment] = useState<string>('');
-  const [easeOfUse, setEaseOfUse] = useState<number>(0);
-  const [accuracy, setAccuracy] = useState<number>(0);
-  const [usefulness, setUsefulness] = useState<number>(0);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  // Filter Performance Metrics (for model improvement)
+  const [filterAccuracy, setFilterAccuracy] = useState<number>(0);
+  const [colorCorrectionEffectiveness, setColorCorrectionEffectiveness] = useState<number>(0);
+  const [overCorrectionLevel, setOverCorrectionLevel] = useState<number>(0);
+  const [underCorrectionLevel, setUnderCorrectionLevel] = useState<number>(0);
   
-  // Filter-specific feedback states
-  const [needsMoreBlue, setNeedsMoreBlue] = useState<boolean>(false);
-  const [needsMoreRed, setNeedsMoreRed] = useState<boolean>(false);
-  const [needsMoreGreen, setNeedsMoreGreen] = useState<boolean>(false);
-  const [filterRating, setFilterRating] = useState<number>(0);
-  const [filterComment, setFilterComment] = useState<string>('');
+  // Color-Specific Performance
+  const [redGreenCorrection, setRedGreenCorrection] = useState<number>(0);
+  const [blueYellowCorrection, setBlueYellowCorrection] = useState<number>(0);
+  const [contrastImprovement, setContrastImprovement] = useState<number>(0);
+  
+  // Model Performance Assessment
+  const [testAccuracyMatch, setTestAccuracyMatch] = useState<number>(0);
+  const [severityDetectionAccuracy, setSeverityDetectionAccuracy] = useState<number>(0);
+  const [cvdTypeDetectionAccuracy, setCvdTypeDetectionAccuracy] = useState<number>(0);
+  
+  // Technical Issues for Model Training
+  const [specificColorIssues, setSpecificColorIssues] = useState<string>('');
+  const [filterIntensityFeedback, setFilterIntensityFeedback] = useState<string>('');
+  const [falsePositiveNotes, setFalsePositiveNotes] = useState<string>('');
+  const [modelImprovementSuggestions, setModelImprovementSuggestions] = useState<string>('');
+  
+  // Environmental/Context Data for ML
+  const [lightingConditions, setLightingConditions] = useState<string>('');
+  const [deviceType, setDeviceType] = useState<string>('');
+  
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const resetForm = () => {
-    setFeedbackType('rating');
-    setRating(0);
-    setComment('');
-    setEaseOfUse(0);
-    setAccuracy(0);
-    setUsefulness(0);
-    setNeedsMoreBlue(false);
-    setNeedsMoreRed(false);
-    setNeedsMoreGreen(false);
-    setFilterRating(0);
-    setFilterComment('');
+    setFilterAccuracy(0);
+    setColorCorrectionEffectiveness(0);
+    setOverCorrectionLevel(0);
+    setUnderCorrectionLevel(0);
+    setRedGreenCorrection(0);
+    setBlueYellowCorrection(0);
+    setContrastImprovement(0);
+    setTestAccuracyMatch(0);
+    setSeverityDetectionAccuracy(0);
+    setCvdTypeDetectionAccuracy(0);
+    setSpecificColorIssues('');
+    setFilterIntensityFeedback('');
+    setFalsePositiveNotes('');
+    setModelImprovementSuggestions('');
+    setLightingConditions('');
+    setDeviceType('');
   };
 
   const handleSubmit = async () => {
-    if (feedbackType === 'rating' && rating === 0) {
-      Alert.alert('Rating Required', 'Please provide a rating before submitting.');
-      return;
-    }
-
-    if ((feedbackType === 'comment' || feedbackType === 'bug_report' || feedbackType === 'feature_request') && !comment.trim()) {
-      Alert.alert('Comment Required', 'Please provide a comment before submitting.');
+    if (filterAccuracy === 0) {
+      Alert.alert('Rating Required', 'Please provide a filter accuracy rating before submitting.');
       return;
     }
 
@@ -85,32 +98,68 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
       const userProfile = await AsyncStorage.getItem('userProfile');
       const userId = userProfile ? JSON.parse(userProfile).user_id : 'anonymous';
 
-      // Create feedback data
+      // Create ML/Filter improvement focused feedback data
       const feedbackData: FeedbackData = {
         user_id: userId,
         page_name: pageName,
-        feedback_type: feedbackType,
-        rating: feedbackType === 'rating' ? rating : undefined,
-        comment: comment.trim() || undefined,
-        user_experience: feedbackType === 'rating' ? {
-          ease_of_use: easeOfUse,
-          accuracy: accuracy,
-          usefulness: usefulness,
-        } : undefined,
+        feedback_type: 'comment',
+        rating: filterAccuracy,
+        comment: modelImprovementSuggestions.trim() || undefined,
         context: {
           ...context,
-          // Include filter details if on camera filter page
-          filter_feedback: pageName === 'camera_filter' ? {
-            selected_filter: filterDetails?.selectedFilter,
-            filter_params: filterDetails?.filterParams,
-            needs_more_blue: needsMoreBlue,
-            needs_more_red: needsMoreRed,
-            needs_more_green: needsMoreGreen,
-            filter_rating: filterRating,
-            filter_comment: filterComment.trim() || undefined,
-          } : undefined,
-          // Include recent test results for analysis
-          recent_test_results: recentTestResults,
+          // ML Training Data for Filter/Model Improvement
+          ml_training_data: {
+            // Filter Performance Metrics
+            filter_performance: {
+              accuracy_rating: filterAccuracy,
+              color_correction_effectiveness: colorCorrectionEffectiveness,
+              over_correction_level: overCorrectionLevel,
+              under_correction_level: underCorrectionLevel,
+            },
+            // Color-Specific Performance
+            color_performance: {
+              red_green_correction: redGreenCorrection,
+              blue_yellow_correction: blueYellowCorrection,
+              contrast_improvement: contrastImprovement,
+            },
+            // Model Accuracy Assessment
+            model_performance: {
+              test_accuracy_match: testAccuracyMatch,
+              severity_detection_accuracy: severityDetectionAccuracy,
+              cvd_type_detection_accuracy: cvdTypeDetectionAccuracy,
+            },
+            // Technical Feedback for Model Training
+            technical_feedback: {
+              specific_color_issues: specificColorIssues.trim(),
+              filter_intensity_feedback: filterIntensityFeedback.trim(),
+              false_positive_notes: falsePositiveNotes.trim(),
+              model_improvement_suggestions: modelImprovementSuggestions.trim(),
+            },
+            // Environmental Context for ML
+            environmental_context: {
+              lighting_conditions: lightingConditions,
+              device_type: deviceType,
+              test_environment: 'real_world_usage',
+            },
+            // User CVD Profile for Training Context
+            user_cvd_profile: recentTestResults ? {
+              cvd_type: recentTestResults.cvd_type,
+              severity_levels: {
+                protanopia: recentTestResults.protanopia_severity,
+                deuteranopia: recentTestResults.deuteranopia_severity,
+                tritanopia: recentTestResults.tritanopia_severity,
+              },
+              overall_severity: recentTestResults.overall_severity,
+              test_accuracy: recentTestResults.accuracy_percentage,
+            } : null,
+            // Filter Usage Context
+            filter_context: {
+              selected_filter: context?.selectedFilter || 'unknown',
+              filter_applied: context?.filterApplied || false,
+              gan_filter_used: context?.selectedFilter === 'smart_ai_filter',
+              filter_effectiveness_score: filterAccuracy,
+            }
+          }
         },
         timestamp: new Date().toISOString(),
         device_info: {
@@ -125,7 +174,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
       Alert.alert(
         'Thank You!',
-        'Your feedback has been submitted successfully. It helps us improve the app!',
+        'Your technical feedback will help improve our AI model and filter algorithms!',
         [{ text: 'OK', onPress: () => { resetForm(); onClose(); } }]
       );
     } catch (error) {
@@ -143,7 +192,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
   const renderStarRating = (currentRating: number, onRatingChange: (rating: number) => void) => {
     return (
       <View style={styles.starContainer}>
-        {[1, 2, 3, 4, 5].map((star) => (
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
           <TouchableOpacity
             key={star}
             onPress={() => onRatingChange(star)}
@@ -151,49 +200,18 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
           >
             <Ionicons
               name={star <= currentRating ? 'star' : 'star-outline'}
-              size={30}
+              size={24}
               color={star <= currentRating ? '#FFD700' : '#CCCCCC'}
             />
           </TouchableOpacity>
         ))}
+        <Text style={styles.ratingText}>{currentRating}/10</Text>
       </View>
     );
   };
 
   const renderFeedbackTypeButtons = () => {
-    const types = [
-      { key: 'rating', label: 'Rate Experience', icon: 'star' },
-      { key: 'comment', label: 'General Comment', icon: 'chatbubble' },
-      { key: 'bug_report', label: 'Report Bug', icon: 'bug' },
-      { key: 'feature_request', label: 'Request Feature', icon: 'bulb' },
-    ] as const;
-
-    return (
-      <View style={styles.typeButtonContainer}>
-        {types.map((type) => (
-          <TouchableOpacity
-            key={type.key}
-            style={[
-              styles.typeButton,
-              feedbackType === type.key && styles.typeButtonActive,
-            ]}
-            onPress={() => setFeedbackType(type.key)}
-          >
-            <Ionicons
-              name={type.icon as any}
-              size={20}
-              color={feedbackType === type.key ? '#FFFFFF' : '#2196F3'}
-            />
-            <Text style={[
-              styles.typeButtonText,
-              feedbackType === type.key && styles.typeButtonTextActive,
-            ]}>
-              {type.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
+    return null; // Removed multiple feedback types - single section only
   };
 
   return (
@@ -203,122 +221,157 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
           <ScrollView contentContainerStyle={styles.scrollContent}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Feedback - {pageName}</Text>
+              <Text style={styles.title}>Filter & Model Feedback</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                 <Ionicons name="close" size={24} color="#666666" />
               </TouchableOpacity>
             </View>
 
-            {/* Feedback Type Selection */}
-            <Text style={styles.sectionTitle}>What type of feedback?</Text>
-            {renderFeedbackTypeButtons()}
-
-            {/* Rating Section */}
-            {feedbackType === 'rating' && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Overall Rating</Text>
-                {renderStarRating(rating, setRating)}
-
-                <Text style={styles.sectionTitle}>Detailed Experience</Text>
-                
-                <View style={styles.detailedRating}>
-                  <Text style={styles.ratingLabel}>Ease of Use</Text>
-                  {renderStarRating(easeOfUse, setEaseOfUse)}
-                </View>
-
-                <View style={styles.detailedRating}>
-                  <Text style={styles.ratingLabel}>Accuracy</Text>
-                  {renderStarRating(accuracy, setAccuracy)}
-                </View>
-
-                <View style={styles.detailedRating}>
-                  <Text style={styles.ratingLabel}>Usefulness</Text>
-                  {renderStarRating(usefulness, setUsefulness)}
-                </View>
-              </View>
-            )}
-
-            {/* Filter-specific feedback section */}
-            {pageName === 'camera_filter' && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Filter Performance</Text>
-                
-                <View style={styles.detailedRating}>
-                  <Text style={styles.ratingLabel}>How well does this filter work for you?</Text>
-                  {renderStarRating(filterRating, setFilterRating)}
-                </View>
-
-                <Text style={styles.sectionTitle}>Color Adjustments Needed</Text>
-                <Text style={styles.subtitle}>Check if you need more of any color:</Text>
-                
-                <View style={styles.colorAdjustmentContainer}>
-                  <TouchableOpacity
-                    style={[styles.colorButton, needsMoreBlue && styles.colorButtonActive]}
-                    onPress={() => setNeedsMoreBlue(!needsMoreBlue)}
-                  >
-                    <View style={[styles.colorIndicator, { backgroundColor: '#007AFF' }]} />
-                    <Text style={[styles.colorButtonText, needsMoreBlue && styles.colorButtonTextActive]}>
-                      Need More Blue
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.colorButton, needsMoreRed && styles.colorButtonActive]}
-                    onPress={() => setNeedsMoreRed(!needsMoreRed)}
-                  >
-                    <View style={[styles.colorIndicator, { backgroundColor: '#FF3B30' }]} />
-                    <Text style={[styles.colorButtonText, needsMoreRed && styles.colorButtonTextActive]}>
-                      Need More Red
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.colorButton, needsMoreGreen && styles.colorButtonActive]}
-                    onPress={() => setNeedsMoreGreen(!needsMoreGreen)}
-                  >
-                    <View style={[styles.colorIndicator, { backgroundColor: '#34C759' }]} />
-                    <Text style={[styles.colorButtonText, needsMoreGreen && styles.colorButtonTextActive]}>
-                      Need More Green
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={styles.sectionTitle}>Filter Comments</Text>
-                <TextInput
-                  style={styles.commentInput}
-                  multiline
-                  numberOfLines={3}
-                  placeholder="How can we improve this filter for you?"
-                  value={filterComment}
-                  onChangeText={setFilterComment}
-                  textAlignVertical="top"
-                />
-              </View>
-            )}
-
-            {/* Comment Section */}
+            {/* Filter Performance Section */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {feedbackType === 'bug_report' 
-                  ? 'Describe the bug you encountered:'
-                  : feedbackType === 'feature_request'
-                  ? 'Describe the feature you would like:'
-                  : 'Additional comments (optional):'
-                }
-              </Text>
+              <Text style={styles.sectionTitle}>Filter Performance</Text>
+              
+              <View style={styles.ratingQuestion}>
+                <Text style={styles.ratingLabel}>Filter Accuracy (1-10)</Text>
+                {renderStarRating(filterAccuracy, setFilterAccuracy)}
+              </View>
+
+              <View style={styles.ratingQuestion}>
+                <Text style={styles.ratingLabel}>Color Correction Effectiveness</Text>
+                {renderStarRating(colorCorrectionEffectiveness, setColorCorrectionEffectiveness)}
+              </View>
+
+              <View style={styles.ratingQuestion}>
+                <Text style={styles.ratingLabel}>Over-Correction Level (1=none, 10=too much)</Text>
+                {renderStarRating(overCorrectionLevel, setOverCorrectionLevel)}
+              </View>
+
+              <View style={styles.ratingQuestion}>
+                <Text style={styles.ratingLabel}>Under-Correction Level (1=none, 10=too little)</Text>
+                {renderStarRating(underCorrectionLevel, setUnderCorrectionLevel)}
+              </View>
+            </View>
+
+            {/* Color-Specific Performance */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Color-Specific Performance</Text>
+              
+              <View style={styles.ratingQuestion}>
+                <Text style={styles.ratingLabel}>Red-Green Correction Quality</Text>
+                {renderStarRating(redGreenCorrection, setRedGreenCorrection)}
+              </View>
+
+              <View style={styles.ratingQuestion}>
+                <Text style={styles.ratingLabel}>Blue-Yellow Correction Quality</Text>
+                {renderStarRating(blueYellowCorrection, setBlueYellowCorrection)}
+              </View>
+
+              <View style={styles.ratingQuestion}>
+                <Text style={styles.ratingLabel}>Contrast Improvement</Text>
+                {renderStarRating(contrastImprovement, setContrastImprovement)}
+              </View>
+            </View>
+
+            {/* Model Performance Assessment */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Model Accuracy Assessment</Text>
+              
+              <View style={styles.ratingQuestion}>
+                <Text style={styles.ratingLabel}>Test Results Match Reality</Text>
+                {renderStarRating(testAccuracyMatch, setTestAccuracyMatch)}
+              </View>
+
+              <View style={styles.ratingQuestion}>
+                <Text style={styles.ratingLabel}>Severity Detection Accuracy</Text>
+                {renderStarRating(severityDetectionAccuracy, setSeverityDetectionAccuracy)}
+              </View>
+
+              <View style={styles.ratingQuestion}>
+                <Text style={styles.ratingLabel}>CVD Type Detection Accuracy</Text>
+                {renderStarRating(cvdTypeDetectionAccuracy, setCvdTypeDetectionAccuracy)}
+              </View>
+            </View>
+
+            {/* Environmental Context */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Environment & Context</Text>
+              
+              <Text style={styles.questionLabel}>Lighting Conditions</Text>
+              <View style={styles.optionsContainer}>
+                {['Bright sunlight', 'Indoor fluorescent', 'LED lights', 'Dim lighting', 'Mixed lighting'].map((condition) => (
+                  <TouchableOpacity
+                    key={condition}
+                    style={[styles.optionButton, lightingConditions === condition && styles.optionButtonActive]}
+                    onPress={() => setLightingConditions(condition)}
+                  >
+                    <Text style={[styles.optionText, lightingConditions === condition && styles.optionTextActive]}>
+                      {condition}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.questionLabel}>Device Type</Text>
+              <View style={styles.optionsContainer}>
+                {['iPhone', 'Android phone', 'Tablet', 'Other'].map((device) => (
+                  <TouchableOpacity
+                    key={device}
+                    style={[styles.optionButton, deviceType === device && styles.optionButtonActive]}
+                    onPress={() => setDeviceType(device)}
+                  >
+                    <Text style={[styles.optionText, deviceType === device && styles.optionTextActive]}>
+                      {device}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Technical Feedback */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Technical Issues</Text>
+              
+              <Text style={styles.questionLabel}>Specific Color Issues</Text>
               <TextInput
                 style={styles.commentInput}
                 multiline
-                numberOfLines={4}
-                placeholder={
-                  feedbackType === 'bug_report'
-                    ? 'What happened? What did you expect? Steps to reproduce...'
-                    : feedbackType === 'feature_request'
-                    ? 'What feature would improve your experience?'
-                    : 'Tell us about your experience...'
-                }
-                value={comment}
-                onChangeText={setComment}
+                numberOfLines={2}
+                placeholder="Which colors are still difficult to distinguish? Be specific..."
+                value={specificColorIssues}
+                onChangeText={setSpecificColorIssues}
+                textAlignVertical="top"
+              />
+
+              <Text style={styles.questionLabel}>Filter Intensity Feedback</Text>
+              <TextInput
+                style={styles.commentInput}
+                multiline
+                numberOfLines={2}
+                placeholder="Is the filter too strong, too weak, or just right?"
+                value={filterIntensityFeedback}
+                onChangeText={setFilterIntensityFeedback}
+                textAlignVertical="top"
+              />
+
+              <Text style={styles.questionLabel}>False Positive Notes</Text>
+              <TextInput
+                style={styles.commentInput}
+                multiline
+                numberOfLines={2}
+                placeholder="Did the test incorrectly identify your CVD type or severity?"
+                value={falsePositiveNotes}
+                onChangeText={setFalsePositiveNotes}
+                textAlignVertical="top"
+              />
+
+              <Text style={styles.questionLabel}>Model Improvement Suggestions</Text>
+              <TextInput
+                style={styles.commentInput}
+                multiline
+                numberOfLines={3}
+                placeholder="How can we improve the AI model and filter algorithms?"
+                value={modelImprovementSuggestions}
+                onChangeText={setModelImprovementSuggestions}
                 textAlignVertical="top"
               />
             </View>
@@ -330,7 +383,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
               disabled={isSubmitting}
             >
               <Text style={styles.submitButtonText}>
-                {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
+                {isSubmitting ? 'Submitting...' : 'Submit Technical Feedback'}
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -370,7 +423,7 @@ export const FeedbackButton: React.FC<FeedbackButtonProps> = ({
         style={[styles.feedbackButton, style]}
         onPress={() => setShowModal(true)}
       >
-        <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
+        <Ionicons name="chatbubble-outline" size={14} color="#FFFFFF" />
         <Text style={styles.feedbackButtonText}>Feedback</Text>
       </TouchableOpacity>
 
@@ -495,27 +548,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   feedbackButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
     backgroundColor: '#2196F3',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    elevation: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    zIndex: 1000,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   feedbackButtonText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '500',
-    marginLeft: 5,
+    marginLeft: 3,
   },
   subtitle: {
     fontSize: 14,
@@ -553,6 +602,48 @@ const styles = StyleSheet.create({
   },
   colorButtonTextActive: {
     color: '#2196F3',
+  },
+  ratingQuestion: {
+    marginVertical: 8,
+  },
+  questionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 8,
+    marginTop: 10,
+  },
+  optionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 15,
+  },
+  optionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    backgroundColor: '#FFFFFF',
+  },
+  optionButtonActive: {
+    backgroundColor: '#2196F3',
+    borderColor: '#2196F3',
+  },
+  optionText: {
+    fontSize: 12,
+    color: '#333333',
+    fontWeight: '500',
+  },
+  optionTextActive: {
+    color: '#FFFFFF',
+  },
+  ratingText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#666666',
+    fontWeight: '600',
   },
 });
 

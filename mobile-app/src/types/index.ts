@@ -108,6 +108,7 @@ export interface HealthCheck {
 
 export type RootStackParamList = {
   Main: undefined;
+  ProfileSetup: undefined;
   Profile: undefined;
   ColorTest: undefined;
   CameraView: { filter?: FilterParams };

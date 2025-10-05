@@ -12,8 +12,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import apiService from '../services/api';
-import { UserProfile } from '../types';
+import { UserProfile, RootStackParamList } from '../types';
+
+type ProfileScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
 const Colors = {
   primary: '#007AFF',
@@ -24,6 +28,7 @@ const Colors = {
 };
 
 const ProfileScreen: React.FC = () => {
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
   const [profile, setProfile] = useState<UserProfile>({
     user_id: '',
     name: '',
@@ -33,6 +38,7 @@ const ProfileScreen: React.FC = () => {
     previous_tests: [],
   });
   const [loading, setLoading] = useState(false);
+  const [isFirstTime, setIsFirstTime] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -44,13 +50,16 @@ const ProfileScreen: React.FC = () => {
       if (savedProfile) {
         const parsedProfile = JSON.parse(savedProfile);
         setProfile(parsedProfile);
+        setIsFirstTime(false);
       } else {
         // Generate a unique user ID if none exists
         const userId = `user_${Date.now()}`;
         setProfile(prev => ({ ...prev, user_id: userId }));
+        setIsFirstTime(true);
       }
     } catch (error) {
       console.error('Error loading profile:', error);
+      setIsFirstTime(true);
     }
   };
 
@@ -74,7 +83,27 @@ const ProfileScreen: React.FC = () => {
       
       setProfile(updatedProfile);
 
-      Alert.alert('Success', 'Profile saved successfully!');
+      if (isFirstTime) {
+        // Navigate to main app after successful profile creation
+        Alert.alert(
+          'Welcome!', 
+          'Your profile has been created successfully. Let\'s get started with your color vision assessment!',
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                // Force navigation reset to main app
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Main' }],
+                });
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Success', 'Profile updated successfully!');
+      }
     } catch (error) {
       console.error('Error saving profile:', error);
       Alert.alert('Error', 'Failed to save profile. Please try again.');
@@ -96,8 +125,15 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.decorCircle2} />
           <View style={styles.headerContent}>
             <View>
-              <Text style={styles.title}>User Profile</Text>
-              <Text style={styles.subtitle}>Please provide accurate information for better assessment</Text>
+              <Text style={styles.title}>
+                {isFirstTime ? 'Welcome to CVD Detection' : 'User Profile'}
+              </Text>
+              <Text style={styles.subtitle}>
+                {isFirstTime 
+                  ? 'Let\'s set up your profile to get started with personalized color vision assessment'
+                  : 'Please provide accurate information for better assessment'
+                }
+              </Text>
             </View>
           </View>
         </View>
@@ -161,7 +197,9 @@ const ProfileScreen: React.FC = () => {
           ) : (
             <View style={styles.saveButtonContent}>
               <Ionicons name="save-outline" size={20} color="white" style={{ marginRight: 8 }} />
-              <Text style={styles.saveButtonText}>Save Profile</Text>
+              <Text style={styles.saveButtonText}>
+                {isFirstTime ? 'Get Started' : 'Save Profile'}
+              </Text>
             </View>
           )}
         </TouchableOpacity>

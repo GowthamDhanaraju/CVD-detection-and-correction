@@ -206,52 +206,53 @@ const ColorTestScreen = () => {
       <ScrollView style={styles.container} contentContainerStyle={styles.instructionsContainer}>
         <View style={styles.instructionsHeader}>
           <Text style={styles.instructionsTitle}>Color Vision Test Instructions</Text>
-          <Text style={styles.instructionsSubtitle}>Ishihara Color Blindness Test</Text>
+          <Text style={styles.instructionsSubtitle}>Advanced CVD Detection Test</Text>
         </View>
 
         <View style={styles.instructionsContent}>
           <View style={styles.instructionStep}>
             <Text style={styles.stepNumber}>1</Text>
             <Text style={styles.stepText}>
-              You will see 20 circular patterns made up of colored dots
+              You will see 10 pairs of images with real-world color patterns
             </Text>
           </View>
 
           <View style={styles.instructionStep}>
             <Text style={styles.stepNumber}>2</Text>
             <Text style={styles.stepText}>
-              For each pattern, determine if you can see a number or shape hidden within the dots
+              Compare the original image (left) with the filtered image (right)
             </Text>
           </View>
 
           <View style={styles.instructionStep}>
             <Text style={styles.stepNumber}>3</Text>
             <Text style={styles.stepText}>
-              Tap "Yes, I can see it" if you can clearly identify a number or pattern
+              Tap "Same" if both images look identical to you
             </Text>
           </View>
 
           <View style={styles.instructionStep}>
             <Text style={styles.stepNumber}>4</Text>
             <Text style={styles.stepText}>
-              Tap "No, I cannot see it" if you cannot see any pattern or are unsure
+              Tap "Different" if you can see any differences between the images
             </Text>
           </View>
 
           <View style={styles.instructionStep}>
             <Text style={styles.stepNumber}>5</Text>
             <Text style={styles.stepText}>
-              Take your time with each question, but trust your first instinct
+              The test uses AI-powered filters to detect specific color vision deficiencies
             </Text>
           </View>
 
           <View style={styles.importantNote}>
             <Text style={styles.noteTitle}>Important:</Text>
             <Text style={styles.noteText}>
-              • Ensure you have good lighting{'\n'}
-              • Hold your device at a comfortable distance{'\n'}
-              • Answer honestly for accurate results{'\n'}
-              • The test takes approximately 3-5 minutes
+              • Ensure good lighting and screen brightness{'\n'}
+              • Hold your device at arm's length{'\n'}
+              • Answer based on your first impression{'\n'}
+              • The test takes approximately 2-3 minutes{'\n'}
+              • Results will show personalized filter recommendations
             </Text>
           </View>
         </View>
@@ -275,7 +276,7 @@ const ColorTestScreen = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Color Vision Test</Text>
+        <Text style={styles.title}>Advanced CVD Detection Test</Text>
         <Text style={styles.subtitle}>
           Question {currentQuestionIndex + 1} of {test.questions.length}
         </Text>
@@ -290,15 +291,15 @@ const ColorTestScreen = () => {
       <View style={styles.instructionsContainer}>
         <Text style={styles.instructionsTitle}>Instructions:</Text>
         <Text style={styles.instructionsText}>
-          Look at both images below and decide if they appear the same or different to you.
-          Answer honestly based on what you see.
+          Compare the original image (left) with the filtered image (right). 
+          Do they look exactly the same to you, or can you see any differences?
         </Text>
       </View>
 
       {/* Images */}
       <View style={styles.imagesContainer}>
         <View style={styles.imageWrapper}>
-          <Text style={styles.imageLabel}>Image A</Text>
+          <Text style={styles.imageLabel}>Original</Text>
           <Image
             source={{ uri: currentQuestion.image_original }}
             style={styles.testImage}
@@ -307,7 +308,7 @@ const ColorTestScreen = () => {
         </View>
 
         <View style={styles.imageWrapper}>
-          <Text style={styles.imageLabel}>Image B</Text>
+          <Text style={styles.imageLabel}>Filtered</Text>
           <Image
             source={{ uri: currentQuestion.image_filtered }}
             style={styles.testImage}
@@ -319,7 +320,7 @@ const ColorTestScreen = () => {
       {/* Question */}
       <View style={styles.questionContainer}>
         <Text style={styles.questionText}>
-          Do these two images look the same to you?
+          Do the original and filtered images look exactly the same to you?
         </Text>
       </View>
 

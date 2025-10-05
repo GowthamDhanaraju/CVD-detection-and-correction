@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ActivityIndicator, View } from 'react-native';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -37,20 +39,6 @@ function TabNavigator() {
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons 
               name={focused ? 'home' : 'home-outline'} 
-              size={size} 
-              color={color} 
-            />
-          ),
-        }}
-      />
-      <Tab.Screen 
-        name="Profile" 
-        component={ProfileScreen}
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons 
-              name={focused ? 'person' : 'person-outline'} 
               size={size} 
               color={color} 
             />
@@ -104,19 +92,67 @@ function TabNavigator() {
 }
 
 export default function Navigation() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasProfile, setHasProfile] = useState(false);
+
+  useEffect(() => {
+    checkProfileExists();
+  }, []);
+
+  const checkProfileExists = async () => {
+    try {
+      const savedProfile = await AsyncStorage.getItem('userProfile');
+      if (savedProfile) {
+        const profile = JSON.parse(savedProfile);
+        // Check if profile has required fields
+        if (profile.name && profile.age && profile.gender) {
+          setHasProfile(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking profile:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Show loading screen while checking profile
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator>
-        <Stack.Screen 
-          name="Main" 
-          component={TabNavigator} 
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen 
-          name="Results" 
-          component={ResultsScreen}
-          options={{ title: 'Test Results' }}
-        />
+        {!hasProfile ? (
+          // Profile setup flow - mandatory first screen
+          <Stack.Screen 
+            name="ProfileSetup" 
+            component={ProfileScreen}
+            options={{ 
+              headerShown: false,
+              gestureEnabled: false, // Prevent going back
+            }}
+          />
+        ) : (
+          // Main app flow - only accessible after profile setup
+          <>
+            <Stack.Screen 
+              name="Main" 
+              component={TabNavigator} 
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="Results" 
+              component={ResultsScreen}
+              options={{ title: 'Test Results' }}
+            />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );

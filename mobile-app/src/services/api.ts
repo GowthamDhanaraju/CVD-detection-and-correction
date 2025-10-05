@@ -10,8 +10,21 @@ import {
   FeedbackData,
 } from '../types';
 
-// API Base URL - Set for web development (most reliable)
-const API_BASE_URL = 'http://localhost:8001'; // For web development
+// API Base URL - Environment-based configuration
+const getApiBaseUrl = () => {
+  // Check if running in web production
+  if (typeof window !== 'undefined' && window.location.protocol.startsWith('http')) {
+    // Production: Use relative path with nginx reverse proxy
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return '/api';
+    }
+  }
+  
+  // Development fallback
+  return 'http://localhost:8001';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Alternative URLs for different environments:
 // const API_BASE_URL = 'http://10.0.2.2:8001'; // For Android emulator
@@ -20,7 +33,7 @@ const API_BASE_URL = 'http://localhost:8001'; // For web development
 class ColorVisionApiService {
   private api = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 10000,
+    timeout: 30000, // Increased timeout for production
     headers: {
       'Content-Type': 'application/json',
     },
