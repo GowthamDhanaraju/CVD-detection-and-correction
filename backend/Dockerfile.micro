@@ -1,29 +1,26 @@
-# Lightweight Python backend for micro instances
+# Ultra-lightweight Python backend for t2.micro
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install minimal system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install only curl for health checks
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
+# Copy and install minimal requirements
 COPY requirements.micro.txt .
 RUN pip install --no-cache-dir -r requirements.micro.txt
 
 # Copy application code
-COPY . .
+COPY main.micro.py main.py
+COPY local_storage.micro.py local_storage.py
 
 # Create non-root user
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 # Health check
-HEALTHCHECK --interval=60s --timeout=15s --start-period=120s --retries=2 \
+HEALTHCHECK --interval=60s --timeout=15s --start-period=60s --retries=2 \
     CMD curl -f http://localhost:8001/health || exit 1
 
-# Start the application with minimal main
-CMD ["python", "-m", "uvicorn", "main.micro:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
+# Start the application
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]

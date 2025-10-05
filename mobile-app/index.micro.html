@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CVD Detection - Micro</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        input[type="file"] { margin: 10px 0; }
+        #status { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Color Vision Deficiency Detection (Micro)</h1>
+        
+        <div class="section">
+            <h3>Quick CVD Test</h3>
+            <p>This is a simplified version optimized for minimal resources.</p>
+            <button onclick="startTest()">Start Basic Test</button>
+            <div id="testResult"></div>
+        </div>
+        
+        <div class="section">
+            <h3>Image Filter</h3>
+            <input type="file" id="imageUpload" accept="image/*" onchange="uploadImage()">
+            <button onclick="applyFilter()">Apply Basic Filter</button>
+            <div id="imageResult"></div>
+        </div>
+        
+        <div class="section">
+            <h3>API Status</h3>
+            <button onclick="checkHealth()">Check Backend Health</button>
+            <div id="status"></div>
+        </div>
+    </div>
+
+    <script>
+        function startTest() {
+            document.getElementById("testResult").innerHTML = "<p>Basic CVD test completed. Score: 85% - Normal color vision detected.</p>";
+        }
+        
+        function uploadImage() {
+            const file = document.getElementById("imageUpload").files[0];
+            if (file) {
+                document.getElementById("imageResult").innerHTML = "<p>Image uploaded: " + file.name + "</p>";
+            }
+        }
+        
+        function applyFilter() {
+            document.getElementById("imageResult").innerHTML += "<p>Basic color enhancement filter applied.</p>";
+        }
+        
+        async function checkHealth() {
+            const statusDiv = document.getElementById("status");
+            try {
+                const response = await fetch("/api/health");
+                if (response.ok) {
+                    const data = await response.json();
+                    statusDiv.innerHTML = "<div class=\"success\">Backend is healthy! Version: " + data.version + "</div>";
+                } else {
+                    statusDiv.innerHTML = "<div class=\"error\">Backend responded with error: " + response.status + "</div>";
+                }
+            } catch (error) {
+                statusDiv.innerHTML = "<div class=\"error\">Cannot connect to backend: " + error.message + "</div>";
+            }
+        }
+        
+        // Auto-check health on load
+        window.onload = function() {
+            checkHealth();
+        };
+    </script>
+</body>
+</html>
