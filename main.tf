@@ -140,9 +140,7 @@ resource "aws_instance" "cvd_host" {
     encrypted = false             # FREE TIER: Encryption not included in free tier
   }
 
-  user_data = base64encode(templatefile("${path.module}/ec2-deployment/user-data.sh", {
-    aws_region = "ap-south-1"
-  }))
+  user_data = base64encode(file("${path.module}/ec2-deployment/user-data.sh"))
 
   tags = {
     Name = "CVD-Detection-Server"
