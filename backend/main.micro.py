@@ -7,8 +7,6 @@ import os
 import logging
 from datetime import datetime
 import json
-import numpy as np
-import cv2
 import base64
 from io import BytesIO
 from PIL import Image
@@ -240,10 +238,12 @@ async def apply_filter(request: FilterRequest):
             if dalton_utils:
                 filtered_image = dalton_utils.apply_dalton_filter(image, intensity=request.intensity)
             else:
-                # Fallback: simple contrast adjustment
-                filtered_image = Image.fromarray(
-                    np.clip(np.array(image) * (1 + request.intensity * 0.3), 0, 255).astype(np.uint8)
-                )
+                # Fallback: simple brightness and contrast adjustment using PIL
+                from PIL import ImageEnhance
+                enhancer = ImageEnhance.Brightness(image)
+                filtered_image = enhancer.enhance(1 + request.intensity * 0.3)
+                enhancer = ImageEnhance.Contrast(filtered_image)
+                filtered_image = enhancer.enhance(1 + request.intensity * 0.2)
         
         elif request.filter_type == "gan" and not MICRO_MODE:
             # Use GAN filter if available and not in micro mode
@@ -251,16 +251,20 @@ async def apply_filter(request: FilterRequest):
             if gan_generator:
                 filtered_image = gan_generator.apply_filter(image, intensity=request.intensity)
             else:
-                # Fallback: enhanced color adjustment
-                img_array = np.array(image)
-                enhanced = cv2.convertScaleAbs(img_array, alpha=1.2, beta=10)
-                filtered_image = Image.fromarray(enhanced)
+                # Fallback: enhanced color adjustment using PIL
+                from PIL import ImageEnhance
+                enhancer = ImageEnhance.Color(image)
+                filtered_image = enhancer.enhance(1.2 + request.intensity * 0.3)
+                enhancer = ImageEnhance.Contrast(filtered_image)
+                filtered_image = enhancer.enhance(1.1 + request.intensity * 0.2)
         
         else:
-            # Basic color enhancement fallback
-            img_array = np.array(image)
-            enhanced = cv2.convertScaleAbs(img_array, alpha=1.1 + request.intensity * 0.2, beta=5)
-            filtered_image = Image.fromarray(enhanced)
+            # Basic color enhancement fallback using PIL
+            from PIL import ImageEnhance
+            enhancer = ImageEnhance.Brightness(image)
+            filtered_image = enhancer.enhance(1.1 + request.intensity * 0.2)
+            enhancer = ImageEnhance.Contrast(filtered_image)
+            filtered_image = enhancer.enhance(1.05 + request.intensity * 0.1)
         
         # Convert result to base64
         buffer = BytesIO()
