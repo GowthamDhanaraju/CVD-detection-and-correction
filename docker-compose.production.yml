@@ -53,11 +53,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 4G
+          cpus: '0.8'
+          memory: 900M
         reservations:
-          cpus: '1.0'
-          memory: 2G
+          cpus: '0.4'
+          memory: 512M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
@@ -90,11 +90,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 2G
+          cpus: '0.15'
+          memory: 512M
         reservations:
-          cpus: '0.5'
-          memory: 1G
+          cpus: '0.05'
+          memory: 256M
     logging:
       driver: "json-file"
       options:
@@ -180,8 +180,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 2G
+          cpus: '0.05'
+          memory: 512M
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
       interval: 60s
