@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/api';
 import { FeedbackData } from '../types';
+import Colors from '../constants/Colors';
 
 interface FeedbackScreenProps {
   route: {
@@ -117,25 +118,24 @@ const FeedbackScreen: React.FC<FeedbackScreenProps> = ({ route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
+          <TouchableOpacity onPress={handleSkip} style={styles.skipButton} accessibilityLabel="Skip feedback">
             <Text style={styles.skipText}>Skip</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Main Content */}
         <View style={styles.mainContent}>
           <View style={styles.iconContainer}>
-            <Ionicons name="chatbubble-ellipses" size={60} color="#2196F3" />
+            <Ionicons name="chatbubble-ellipses" size={60} color={Colors.primary} />
           </View>
 
-          <Text style={styles.title}>How was your experience?</Text>
-          <Text style={styles.subtitle}>
+          <Text style={styles.title} accessibilityRole="header">
+            How was your experience?
+          </Text>
+          <Text style={styles.subtitle} accessibilityLabel="Prompt to provide feedback">
             Help us improve the {pageName.replace('_', ' ')} experience
           </Text>
 
-          {/* Quick Feedback Options */}
           <View style={styles.feedbackOptions}>
             {quickFeedbackOptions.map((option, index) => (
               <TouchableOpacity
@@ -147,14 +147,10 @@ const FeedbackScreen: React.FC<FeedbackScreenProps> = ({ route }) => {
                 ]}
                 onPress={() => handleQuickFeedback(option.id, 5 - index)}
                 disabled={isSubmitting}
+                accessibilityLabel={`Feedback option: ${option.text}`}
+                accessibilityHint="Select this option to provide quick feedback"
               >
-                <Text style={styles.feedbackEmoji}>{option.emoji}</Text>
-                <Text style={[
-                  styles.feedbackText,
-                  quickFeedback === option.id && styles.selectedText,
-                ]}>
-                  {option.text}
-                </Text>
+                <Text style={styles.feedbackText}>{option.emoji} {option.text}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -166,7 +162,7 @@ const FeedbackScreen: React.FC<FeedbackScreenProps> = ({ route }) => {
               onPress={handleDetailedFeedback}
               disabled={isSubmitting}
             >
-              <Ionicons name="create-outline" size={20} color="#2196F3" />
+              <Ionicons name="create-outline" size={20} color={Colors.primary} />
               <Text style={styles.detailedButtonText}>Give detailed feedback</Text>
             </TouchableOpacity>
           </View>
@@ -239,15 +235,11 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   feedbackOption: {
-    flexDirection: 'row',
+    backgroundColor: Colors.secondary,
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 8,
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    marginBottom: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
   },
   selectedOption: {
     backgroundColor: '#E3F2FD',
@@ -256,18 +248,10 @@ const styles = StyleSheet.create({
   disabledOption: {
     opacity: 0.6,
   },
-  feedbackEmoji: {
-    fontSize: 24,
-    marginRight: 15,
-  },
   feedbackText: {
+    color: '#fff',
     fontSize: 16,
-    color: '#333333',
-    fontWeight: '500',
-  },
-  selectedText: {
-    color: '#2196F3',
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   additionalOptions: {
     width: '100%',

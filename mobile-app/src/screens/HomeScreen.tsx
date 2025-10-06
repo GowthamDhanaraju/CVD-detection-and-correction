@@ -115,120 +115,56 @@ const HomeScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>      
+    <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerContainer}>
-        <View style={styles.header}>
-          {/* Decorative circles for a modern look */}
-          <View style={styles.decorCircle1} />
-          <View style={styles.decorCircle2} />
+        <View style={styles.headerContainer}>
+          <View style={styles.header}>
+            <View style={styles.decorCircle1} />
+            <View style={styles.decorCircle2} />
 
-          <View style={styles.headerContent}>
-            <View style={styles.headerTextWrap}>
-              <Text style={styles.title}>Color Vision</Text>
-              <Text style={styles.subtitle}>Advanced detection & correction</Text>
+            <View style={styles.headerContent}>
+              <View style={styles.headerTextWrap}>
+                <Text style={styles.title} accessibilityRole="header">
+                  Color Vision
+                </Text>
+                <Text style={styles.subtitle} accessibilityLabel="Advanced detection and correction">
+                  Advanced detection & correction
+                </Text>
+              </View>
             </View>
           </View>
         </View>
-      </View>
 
-      {/* Welcome Section */}
-      <View style={styles.welcomeSection}>
-        <Text style={styles.welcomeText}>
-          {profile ? `Welcome back, ${profile.name}!` : 'Welcome to Color Vision Assessment'}
-        </Text>
-        {!profile && (
-          <Text style={styles.setupText}>
-            Set up your profile to get started with personalized color vision testing.
+        <View style={styles.welcomeSection}>
+          <Text style={styles.welcomeText} accessibilityLabel={`Welcome message for ${profile?.name || 'guest'}`}>
+            {profile ? `Welcome back, ${profile.name}!` : 'Welcome to Color Vision Assessment'}
           </Text>
-        )}
-      </View>
-
-      {/* Last Test Result */}
-      {lastTestResult && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Latest Test Result</Text>
-          <View style={styles.resultContainer}>
-            <View style={styles.resultRow}>
-              <Text style={styles.resultLabel}>Date:</Text>
-              <Text style={styles.resultValue}>
-                {new Date(lastTestResult.timestamp).toLocaleDateString()}
-              </Text>
-            </View>
-            <View style={styles.resultRow}>
-              <Text style={styles.resultLabel}>Status:</Text>
-              <Text style={[
-                styles.resultValue, 
-                { color: getSeverityColor(lastTestResult.overall_severity) }
-              ]}>
-                {getSeverityDescription(lastTestResult.overall_severity)}
-              </Text>
-            </View>
-            <View style={styles.resultRow}>
-              <Text style={styles.resultLabel}>Recommended Filter:</Text>
-              <Text style={styles.resultValue}>
-                {lastTestResult.recommended_filter ? 'Available' : 'None'}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Quick Actions */}
-      <View style={styles.actionsSection}>
-        <TouchableOpacity 
-          style={styles.primaryButton} 
-          onPress={startNewTest}
-        >
-          <Text style={styles.primaryButtonText}>
-            {lastTestResult ? 'Take New Test' : 'Start Color Vision Test'}
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.secondaryActions}>
-          <TouchableOpacity 
-            style={styles.secondaryButton}
-            onPress={() => navigation.navigate('History')}
-          >
-            <Text style={styles.secondaryButtonText}>View Test History</Text>
-          </TouchableOpacity>
-
-          {lastTestResult && lastTestResult.overall_severity !== 'none' && (
-            <TouchableOpacity 
-              style={styles.secondaryButton}
-              onPress={() => navigation.navigate('CameraView', { 
-                filter: lastTestResult.recommended_filter 
-              })}
-            >
-              <Text style={styles.secondaryButtonText}>Apply Color Filter</Text>
-            </TouchableOpacity>
-          )}
-
           {!profile && (
-            <TouchableOpacity 
-              style={styles.secondaryButton}
-              onPress={() => navigation.navigate('Profile')}
-            >
-              <Text style={styles.secondaryButtonText}>Set Up Profile</Text>
-            </TouchableOpacity>
+            <Text style={styles.setupText} accessibilityHint="Prompt to set up profile">
+              Set up your profile to get started with personalized color vision testing.
+            </Text>
           )}
         </View>
-      </View>
 
-      {/* Information Section */}
-      <View style={styles.infoSection}>
-        <Text style={styles.infoTitle}>About Color Vision Testing</Text>
-        <Text style={styles.infoText}>
-          Our advanced Ishihara color vision test uses scientifically validated patterns 
-          to detect various types of color vision deficiencies. The test consists of 20 
-          carefully designed questions that assess your ability to distinguish colors.
-        </Text>
-        <Text style={styles.infoText}>
-          If a color vision deficiency is detected, our smart filter system can help 
-          correct your vision by automatically adjusting colors based on your specific 
-          test results.
-        </Text>
-      </View>
+        {lastTestResult && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle} accessibilityRole="summary">
+              Latest Test Result
+            </Text>
+            <Text style={{ color: getSeverityColor(lastTestResult.severity) }}>
+              {getSeverityDescription(lastTestResult.severity)}
+            </Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={startNewTest}
+          accessibilityLabel="Start a new color vision test"
+          accessibilityHint="Navigates to the color test screen"
+        >
+          <Text style={styles.buttonText}>Start Test</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -413,6 +349,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,140,66,0.08)',
     top: -20,
     right: -20,
+  },
+  button: {
+    backgroundColor: Colors.primary,
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 16,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   /* Decorative circles for header */
 });

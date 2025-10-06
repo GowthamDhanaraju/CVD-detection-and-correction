@@ -8,11 +8,13 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  SafeAreaView,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ColorVisionTest, TestQuestion, CVDResults } from '../types';
 import apiService from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Colors from '../constants/Colors';
 
 const ColorTestScreen = () => {
   const navigation = useNavigation();
@@ -181,7 +183,7 @@ const ColorTestScreen = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={styles.loadingText}>
           {isCompletingTest ? 'Analyzing results...' : testCompleted ? 'Analyzing results...' : 'Loading test...'}
         </Text>
@@ -273,85 +275,51 @@ const ColorTestScreen = () => {
   const progress = ((currentQuestionIndex + 1) / test.questions.length) * 100;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Advanced CVD Detection Test</Text>
-        <Text style={styles.subtitle}>
-          Question {currentQuestionIndex + 1} of {test.questions.length}
-        </Text>
-        
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={[styles.progressBar, { width: `${progress}%` }]} />
-        </View>
-      </View>
-
-      {/* Instructions */}
-      <View style={styles.instructionsContainer}>
-        <Text style={styles.instructionsTitle}>Instructions:</Text>
-        <Text style={styles.instructionsText}>
-          Compare the original image (left) with the filtered image (right). 
-          Do they look exactly the same to you, or can you see any differences?
-        </Text>
-      </View>
-
-      {/* Images */}
-      <View style={styles.imagesContainer}>
-        <View style={styles.imageWrapper}>
-          <Text style={styles.imageLabel}>Original</Text>
-          <Image
-            source={{ uri: currentQuestion.image_original }}
-            style={styles.testImage}
-            resizeMode="contain"
-          />
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerContainer}>
+          <Text style={styles.title} accessibilityRole="header">
+            Color Vision Test
+          </Text>
+          <Text style={styles.subtitle} accessibilityLabel="Instructions for the test">
+            Follow the instructions and answer the questions to the best of your ability.
+          </Text>
         </View>
 
-        <View style={styles.imageWrapper}>
-          <Text style={styles.imageLabel}>Filtered</Text>
-          <Image
-            source={{ uri: currentQuestion.image_filtered }}
-            style={styles.testImage}
-            resizeMode="contain"
-          />
-        </View>
-      </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.loadingText}>Loading test...</Text>
+          </View>
+        ) : (
+          <View style={styles.testContainer}>
+            <Text style={styles.questionText} accessibilityLabel={`Question ${currentQuestionIndex + 1} of ${test?.questions.length}`}>
+              {test?.questions[currentQuestionIndex]?.question_text}
+            </Text>
 
-      {/* Question */}
-      <View style={styles.questionContainer}>
-        <Text style={styles.questionText}>
-          Do the original and filtered images look exactly the same to you?
-        </Text>
-      </View>
+            <View style={styles.optionsContainer}>
+              <TouchableOpacity
+                style={styles.optionButton}
+                onPress={() => handleResponse(true)}
+                accessibilityLabel="Option Yes"
+                accessibilityHint="Select this option if you see the pattern clearly"
+              >
+                <Text style={styles.optionText}>Yes</Text>
+              </TouchableOpacity>
 
-      {/* Response Buttons */}
-      <View style={styles.responseContainer}>
-        <TouchableOpacity
-          style={[styles.responseButton, styles.sameButton]}
-          onPress={() => handleResponse(true)}
-        >
-          <Text style={styles.responseButtonText}>Yes, they look the same</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.responseButton, styles.differentButton]}
-          onPress={() => handleResponse(false)}
-        >
-          <Text style={styles.responseButtonText}>No, they look different</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Help Section */}
-      <View style={styles.helpContainer}>
-        <Text style={styles.helpTitle}>Need Help?</Text>
-        <Text style={styles.helpText}>
-          • Take your time to examine both images
-          • Answer based on your first impression
-          • There are no "right" or "wrong" answers
-          • The test adapts to your responses
-        </Text>
-      </View>
-    </ScrollView>
+              <TouchableOpacity
+                style={styles.optionButton}
+                onPress={() => handleResponse(false)}
+                accessibilityLabel="Option No"
+                accessibilityHint="Select this option if you do not see the pattern clearly"
+              >
+                <Text style={styles.optionText}>No</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -360,7 +328,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  contentContainer: {
+  scrollContent: {
     padding: 20,
   },
   loadingContainer: {
@@ -398,8 +366,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  header: {
+  headerContainer: {
     marginBottom: 20,
+    alignItems: 'center',
   },
   title: {
     fontSize: 28,
@@ -527,30 +496,7 @@ const styles = StyleSheet.create({
     color: '#1565c0',
     lineHeight: 20,
   },
-  imagesContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  imageWrapper: {
-    flex: 0.48,
-    alignItems: 'center',
-  },
-  imageLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 10,
-  },
-  testImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 10,
-    backgroundColor: '#f0f0f0',
-    borderWidth: 2,
-    borderColor: '#ddd',
-  },
-  questionContainer: {
+  testContainer: {
     backgroundColor: 'white',
     padding: 20,
     borderRadius: 10,
@@ -566,32 +512,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     textAlign: 'center',
+    marginBottom: 20,
   },
-  responseContainer: {
-    gap: 12,
+  optionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 30,
   },
-  responseButton: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+  optionButton: {
+    backgroundColor: Colors.accent,
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 8,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 4,
   },
-  sameButton: {
-    backgroundColor: '#28a745',
-  },
-  differentButton: {
-    backgroundColor: '#dc3545',
-  },
-  responseButtonText: {
-    color: 'white',
+  optionText: {
+    color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: 'bold',
   },
   helpContainer: {
     backgroundColor: '#fff3cd',
