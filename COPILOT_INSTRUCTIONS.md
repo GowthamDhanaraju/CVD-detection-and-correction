@@ -1,81 +1,81 @@
-# GitHub Copilot Instructions for CVD Detection Project
+# GitHub Copilot Instructions for Color Vision Deficiency Detection Project
+
+## PROJECT OVERVIEW
+
+**Focus**: Color Vision Deficiency (CVD) Detection and Correction System  
+**NOT**: Cardiovascular Disease detection  
+**Current Status**: Production deployment at https://13.232.255.114
 
 ## CRITICAL TERMINAL RULES - READ FIRST
 
 ### ⚠️ TERMINAL NAVIGATION RULES (MANDATORY)
 1. **NEVER use separate commands for cd and execution** - PowerShell does NOT persist directory changes across commands
 2. **ALWAYS use single-line commands with semicolons**: `cd path; command`
-3. **Example**: `cd d:\Work\Projects\S5\CVD-detection-and-correction\mobile-app; npm start`
-4. **Example**: `cd d:\Work\Projects\S5\CVD-detection-and-correction\backend; python main.py`
+3. **Example**: `cd d:\Work\Projects\S5\CVD-detection-and-correction\mobile-app; npx expo start --web`
+4. **Example**: `cd d:\Work\Projects\S5\CVD-detection-and-correction\backend; .\cvd_backend_env\Scripts\python.exe main.py`
 
 ### Terminal Command Patterns
 ```powershell
 # ✅ CORRECT - Single line with semicolon
-cd d:\Work\Projects\S5\CVD-detection-and-correction\mobile-app; npx expo start
+cd d:\Work\Projects\S5\CVD-detection-and-correction\mobile-app; npx expo start --web
 
 # ❌ WRONG - Separate commands (directory resets)
 cd d:\Work\Projects\S5\CVD-detection-and-correction\mobile-app
-npx expo start
+npx expo start --web
 ```
+
+## DEPLOYMENT STATUS
+
+### 🌐 Live Production System
+- **URL**: https://13.232.255.114
+- **Branch**: micro-deployment  
+- **Instance**: AWS EC2 t2.micro (Mumbai)
+- **Status**: ✅ Active and stable
+- **Architecture**: 3-container lightweight setup
+
+### 🔬 Development Environment  
+- **Branch**: main
+- **Features**: Full PyTorch GAN models, advanced ML pipeline
+- **Requirements**: Higher memory/CPU for ML processing
+- **Ports**: Backend 8001, Frontend 8081
 
 ## PROJECT STRUCTURE
 
 ### Mobile App (React Native + Expo)
 - **Path**: `d:\Work\Projects\S5\CVD-detection-and-correction\mobile-app`
-- **Port**: 8081 (Metro bundler)
-- **Start Command**: `cd d:\Work\Projects\S5\CVD-detection-and-correction\mobile-app; npx expo start`
+- **Port**: 8081 (Metro bundler) 
+- **Start Command**: `cd d:\Work\Projects\S5\CVD-detection-and-correction\mobile-app; npx expo start --web`
 - **Framework**: React Native with Expo, TypeScript
+- **Focus**: Color vision testing and real-time filter application
 
-### Backend (FastAPI + Python)
+### Backend (FastAPI + Python + PyTorch)
 - **Path**: `d:\Work\Projects\S5\CVD-detection-and-correction\backend`
 - **Port**: 8001
-- **Start Command**: `cd d:\Work\Projects\S5\CVD-detection-and-correction\backend; python main.py`
-- **Virtual Environment**: `cvd_backend_env` (auto-activated by script)
+- **Start Command**: `cd d:\Work\Projects\S5\CVD-detection-and-correction\backend; .\cvd_backend_env\Scripts\python.exe main.py`
+- **Virtual Environment**: `cvd_backend_env` (pre-configured)
+- **ML Models**: PyTorch GAN models for color correction
 
-## NEW FEATURES IMPLEMENTED
+## CURRENT FEATURE SET
 
-### Home Screen
-- **Location**: `src/screens/HomeScreen.tsx`
-- **Features**: 
-  - Welcome message with user profile integration
-  - Latest test result summary with severity color coding
-  - Quick action buttons for new tests and filter application
-  - Auto-navigation to filter with recommended settings
-  - Information section about color vision testing
+### Core Application Features
+- **Color Vision Testing**: Scientific Ishihara-based tests with image comparison
+- **AI Filter Generation**: PyTorch GAN models create personalized color corrections  
+- **Real-time Camera Filters**: Live color correction through mobile camera
+- **Comprehensive Analysis**: Detailed test results with question-by-question breakdown
+- **Cross-platform Support**: Web, iOS, Android through React Native
 
-### Auto-Reset Color Tests
-- **Behavior**: Tests automatically reset when screen comes into focus
-- **Implementation**: `useFocusEffect` hook resets test state
-- **Benefit**: Always starts fresh test, never resumes from 20th question
+### Navigation Structure (5 Screens)
+1. **Home Screen** - Welcome, quick actions, test overview
+2. **Profile Screen** - User management (color vision focused)
+3. **Color Test Screen** - Ishihara color vision testing  
+4. **Camera/Filter Screen** - Real-time color correction filters
+5. **History Screen** - Detailed test results and analysis
 
-### Smart Filter Application  
-- **Auto-Loading**: Filters automatically apply based on latest test results
-- **Enhanced Intensity**: 2x stronger color corrections for more noticeable effects
-- **Sophisticated Algorithms**: 
-  - Protanopia: 60° hue rotation + sepia effect
-  - Deuteranopia: 1.5x saturation boost + contrast enhancement
-  - Tritanopia: Enhanced contrast + brightness + negative hue rotation
-
-### Improved Backend Stability
-- **Error Handling**: Added NaN/infinity checks in filter processing
-- **Input Validation**: Proper image format and dimension validation
-- **Glitch Prevention**: Enhanced clipping and data type conversion
-
-### Navigation Structure (5 Tabs Now)
-1. **Home Tab** - Welcome screen with test overview and quick actions
-2. **Profile Tab** - User profile management (color vision focused)
-3. **Color Test Tab** - Ishihara color vision testing (auto-resets)
-4. **Color Filter Tab** - Color vision correction filters (auto-applied from test results)
-5. **History Tab** - Detailed test results with question-by-question analysis
-
-### Removed Features (DO NOT RE-ADD)
-- ❌ Assessment Screen (cardiovascular risk)
-- ❌ Feedback Screen
-- ❌ Home Screen
-- ❌ CVD prediction functionality
-- ❌ Height/weight fields in profile
-- ❌ Medical history in profile
-- ❌ BMI calculations
+### AI/ML Capabilities
+- **GAN Filter Generator**: Neural network-based color correction
+- **DaltonLens Integration**: Scientific color vision simulation  
+- **Adaptive Algorithms**: Severity-based filter intensity
+- **CVD Detection**: Protanopia, deuteranopia, tritanopia classification
 
 ## TYPE SYSTEM
 

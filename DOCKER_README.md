@@ -1,16 +1,61 @@
-# CVD Detection Application - Docker Deployment Guide
+# Color Vision Deficiency Detection - Docker Deployment Guide
 
-This guide explains how to deploy the Color Vision Deficiency (CVD) Detection and Correction application using Docker containers.
+This guide explains how to deploy the **Color Vision Deficiency (CVD)** Detection and Correction application using Docker containers.
 
 ## 🏗️ Architecture
 
 The application consists of the following services:
 
-- **Frontend**: React Native Web application (Expo) - Port 8082
-- **Backend**: FastAPI Python application - Port 8001
+### Main Branch (Full ML Pipeline)
+- **Frontend**: React Native Web application (Expo) - Port 8081
+- **Backend**: FastAPI with PyTorch GAN models - Port 8001
 - **Redis**: Caching and session management - Port 6379
-- **Kafka + Zookeeper**: Message queuing for feedback processing - Port 9092
-- **Nginx**: Reverse proxy (production only) - Port 80/443
+- **Additional Services**: Enhanced ML processing capabilities
+
+### Micro Branch (Lightweight)
+- **Frontend**: React Web application (Vite) - Port 8080
+- **Backend**: FastAPI with traditional algorithms - Port 8001
+- **Redis**: Caching and session management - Port 6379
+- **Nginx**: Reverse proxy for production - Port 80/443
+
+## 📋 Branch Selection Guide
+
+| Feature | Main Branch | Micro Branch |
+|---------|-------------|--------------|
+| **ML Models** | PyTorch GAN models | Traditional algorithms |
+| **Memory Usage** | ~2-4GB | ~512MB-1GB |
+| **Performance** | Advanced processing | Fast, lightweight |
+| **Best For** | Development, research | Production, demos |
+
+## 🚀 Quick Start
+
+### Main Branch (Full Features)
+```bash
+# Clone repository
+git clone https://github.com/GowthamDhanaraju/CVD-detection-and-correction.git
+cd CVD-detection-and-correction
+
+# Start with Docker Compose
+docker-compose up -d
+
+# Access applications
+# Frontend: http://localhost:8081
+# Backend API: http://localhost:8001/docs
+```
+
+### Micro Branch (Lightweight)
+```bash
+# Clone micro branch
+git clone -b micro-deployment https://github.com/GowthamDhanaraju/CVD-detection-and-correction.git
+cd CVD-detection-and-correction
+
+# Start micro deployment
+docker-compose -f docker-compose.micro.yml up -d
+
+# Access applications  
+# Frontend: http://localhost:8080
+# Backend API: http://localhost:8001/docs
+```
 
 ## 📋 Prerequisites
 

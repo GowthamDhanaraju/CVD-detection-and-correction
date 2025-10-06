@@ -1,88 +1,123 @@
-# AWS EC2 Deployment for CVD Detection System
+# AWS EC2 Deployment for Color Vision Deficiency Detection System
 
-## 🚀 EC2 Setup Guide
+## 🚀 Current Production Deployment
 
-Perfect choice! EC2 gives you full control with cloud scalability. Here's your deployment plan:
+### 🌐 Live System  
+**URL**: [https://13.232.255.114](https://13.232.255.114)  
+**Status**: ✅ Active and Accessible  
+**Deployment**: AWS EC2 t2.micro (Mumbai region)  
 
-## 📋 EC2 Instance Requirements
-
-### Recommended Instance Type
-- **t3.medium** or **t3.large** - For general use
-- **m5.large** - For better CPU performance
-- **p3.2xlarge** - If you want GPU acceleration (more expensive)
-
-### Instance Configuration
+### 📊 Current Metrics (Last Updated: Oct 2025)
+- **Instance Type**: t2.micro (1 vCPU, 1GB RAM)
 - **OS**: Ubuntu 22.04 LTS
-- **Storage**: 30GB GP3 SSD minimum
-- **Security Group**: HTTP (80), HTTPS (443), SSH (22), Custom (8001)
-- **Key Pair**: For SSH access
+- **Uptime**: 24/7 availability
+- **SSL**: HTTPS enabled
+- **Performance**: Optimized for lightweight operations
 
-## 🛠️ Quick Deployment Steps
-
-### 1. Launch EC2 Instance
-```bash
-# In AWS Console:
-# 1. Launch Instance
-# 2. Choose Ubuntu 22.04 LTS
-# 3. Select t3.medium
-# 4. Configure security group (ports 22, 80, 443, 8001)
-# 5. Create/select key pair
-# 6. Launch!
-```
-
-### 2. Connect and Setup
-```bash
-# SSH into your instance
-ssh -i your-key.pem ubuntu@your-ec2-ip
-
-# Run the automated setup
-curl -sSL https://raw.githubusercontent.com/your-repo/main/ec2-setup.sh | bash
-```
-
-### 3. Access Your App
-```bash
-# Your CVD Detection system will be available at:
-http://your-ec2-ip:8001
-```
-
-## 💰 Cost Estimation
-
-### Monthly Costs (US East)
-- **t3.medium**: ~$30/month
-- **t3.large**: ~$60/month  
-- **Storage (30GB)**: ~$3/month
-- **Data Transfer**: ~$5-10/month
-- **Total**: ~$35-75/month
-
-### Cost Optimization
-- Use **Spot Instances** for 70% savings
-- **Stop instance** when not in use
-- **Reserved Instances** for long-term savings
-
-## 🔧 Architecture on EC2
+## 🏗️ Current Architecture
 
 ```
 ┌─────────────────────────────────────┐
-│            EC2 Instance             │
+│       AWS EC2 t2.micro Instance     │
 ├─────────────────────────────────────┤
-│  Nginx Reverse Proxy (Port 80)     │
-│  └─ SSL Termination                │
+│  Nginx Reverse Proxy (Port 80/443) │
+│  └─ SSL Termination & Compression  │
+├─────────────────────────────────────┤
+│  React Web App (Micro Branch)      │
+│  ├─ Responsive Mobile UI           │
+│  ├─ Color Vision Testing           │
+│  └─ Traditional Filter Algorithms  │
 ├─────────────────────────────────────┤
 │  FastAPI Backend (Port 8001)       │
-│  ├─ GAN Model Processing           │
-│  ├─ Color Vision Detection         │
-│  └─ Image Filter Generation        │
+│  ├─ Lightweight CVD Detection      │
+│  ├─ Ishihara Test Generation       │
+│  └─ Basic Filter Processing        │
 ├─────────────────────────────────────┤
-│  React Web App (Served by Nginx)   │
-│  ├─ Camera Integration             │
-│  ├─ Real-time Filtering            │
-│  └─ Mobile-Responsive UI           │
-├─────────────────────────────────────┤
-│  SQLite Database                   │
-│  ├─ User Profiles                  │
-│  ├─ Test Results                   │
-│  └─ System Logs                    │
+│  File Storage                      │
+│  ├─ User Test Results              │
+│  ├─ Color Pattern Images           │
+│  └─ System Configuration           │
 └─────────────────────────────────────┘
+```
+
+## 🎯 Production Deployment (Micro Branch)
+
+The live system runs the **micro branch** which is optimized for:
+- ✅ Lightweight resource usage (fits in 1GB RAM)
+- ✅ Fast response times
+- ✅ Reliable color vision testing
+- ✅ Traditional filter algorithms
+- ✅ Cost-effective hosting ($8-12/month)
+
+## 💰 Current Costs
+
+### Monthly Operating Costs (Mumbai Region)
+- **t2.micro**: Free tier eligible / ~$8-12/month
+- **EBS Storage (20GB)**: ~$2/month  
+- **Data Transfer**: ~$1-3/month
+- **Total Monthly**: ~$3-17/month (depending on free tier)
+
+### Resource Optimization
+- ✅ **Ultra-conservative CPU limits**: 0.3 CPU cores
+- ✅ **Memory optimization**: 512MB containers
+- ✅ **Efficient caching**: Redis for session management
+- ✅ **Compressed assets**: Nginx gzip compression
+
+## 🔧 Main Branch Deployment (Advanced)
+
+For full ML capabilities, upgrade to larger instance:
+
+### Recommended for Main Branch
+- **t3.medium** (2 vCPU, 4GB) - $30/month
+- **t3.large** (2 vCPU, 8GB) - $60/month
+- **Supports**: Full GAN models, PyTorch processing
+
+### Main Branch Features
+- 🧠 PyTorch GAN filter generation
+- 🎯 Advanced CVD detection algorithms  
+- 📊 Comprehensive analytics
+- 🔄 Real-time image processing
+
+## 🚀 Deployment Comparison
+
+| Feature | Micro Branch (Live) | Main Branch |
+|---------|-------------------|-------------|
+| **Instance Size** | t2.micro (1GB) | t3.medium+ (4GB+) |
+| **Cost/Month** | $3-17 | $30-60+ |
+| **ML Models** | Traditional algorithms | PyTorch GAN models |
+| **Performance** | Fast, lightweight | Advanced processing |
+| **Best For** | Demo, testing | Production, research |
+
+## 🛠️ Manual Deployment Steps
+
+### For Micro Branch (Current Live)
+```bash
+# 1. Launch t2.micro instance
+# 2. SSH to instance
+ssh -i your-key.pem ubuntu@13.232.255.114
+
+# 3. Clone micro branch
+git clone -b micro-deployment https://github.com/GowthamDhanaraju/CVD-detection-and-correction.git
+
+# 4. Run deployment script
+cd CVD-detection-and-correction
+chmod +x setup-micro.sh
+./setup-micro.sh
+```
+
+### For Main Branch (Full Features)
+```bash
+# 1. Launch t3.medium+ instance  
+# 2. SSH to instance
+ssh -i your-key.pem ubuntu@your-new-ip
+
+# 3. Clone main branch
+git clone https://github.com/GowthamDhanaraju/CVD-detection-and-correction.git
+
+# 4. Run full deployment
+cd CVD-detection-and-correction/ec2-deployment
+chmod +x setup-ec2.sh
+./setup-ec2.sh
 ```
 
 ## 🚀 Advantages of EC2
