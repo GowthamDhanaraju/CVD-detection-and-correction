@@ -20,11 +20,14 @@ import { UserProfile, RootStackParamList } from '../types';
 type ProfileScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
 const Colors = {
-  primary: '#007AFF',
-  accent: '#FF6B6B',
-  background: '#f5f5f5',
+  primary: '#0052CC',      // matching HomeScreen primary
+  accent: '#FF7A1F',       // matching HomeScreen accent
+  background: '#F0F4F8',   // matching HomeScreen background
   card: '#FFFFFF',
-  text: '#333333',
+  textPrimary: '#1A2433',  // matching HomeScreen textPrimary
+  textSecondary: '#4A5568', // matching HomeScreen textSecondary
+  border: '#E2E8F0',       // subtle border color
+  success: '#00875A'       // success state color
 };
 
 const ProfileScreen: React.FC = () => {
@@ -212,20 +215,24 @@ const ProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.background,
   },
   scrollContent: {
     paddingBottom: 40,
   },
-  /* Header redesign */
+  /* Enhanced header design */
   headerContainer: {
     backgroundColor: Colors.primary,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    marginBottom: 24,
   },
   header: {
-    padding: 18,
-    paddingTop: 30,
+    padding: 24,
+    paddingTop: 40,
     alignItems: 'center',
     position: 'relative',
+    overflow: 'hidden',
   },
   headerContent: {
     width: '100%',
@@ -263,25 +270,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   form: {
-    padding: 20,
+    padding: 24,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    color: Colors.textPrimary,
+    marginBottom: 10,
+    letterSpacing: 0.3,
   },
   input: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: Colors.card,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 14,
+    padding: 14,
     fontSize: 16,
-    color: '#333',
+    color: Colors.textPrimary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   textArea: {
     height: 80,
