@@ -237,3 +237,30 @@ button:disabled {
     align-items: center;
   }
 }
+
+/* Camera warning styles */
+.camera-warning {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.camera-warning p {
+  margin: 5px 0;
+}
+
+.camera-overlay ol {
+  text-align: left;
+  margin: 10px 0;
+}
+
+.camera-overlay small {
+  display: block;
+  margin-top: 10px;
+  opacity: 0.8;
+  font-size: 12px;
+}

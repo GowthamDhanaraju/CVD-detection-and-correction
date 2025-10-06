@@ -137,15 +137,49 @@ function App() {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      console.log('Attempting camera access...');
+      console.log('Navigator available:', !!navigator.mediaDevices);
+      console.log('getUserMedia available:', !!navigator.mediaDevices?.getUserMedia);
+      
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera API not supported');
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        } 
+      });
+      
+      console.log('Camera stream obtained successfully');
+      
       if (videoRef) {
         videoRef.srcObject = stream;
         videoRef.play();
         setCameraPermission(true);
+        console.log('Camera started successfully');
       }
     } catch (error) {
-      console.error('Camera access denied:', error);
+      console.error('Camera access error:', error);
+      const err = error as any;
+      console.error('Error name:', err.name);
+      console.error('Error message:', err.message);
       setCameraPermission(false);
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Camera access failed: ';
+      if (err.name === 'NotAllowedError') {
+        errorMessage += 'Permission denied. Please allow camera access and try again.';
+      } else if (err.name === 'NotFoundError') {
+        errorMessage += 'No camera found on this device.';
+      } else if (err.name === 'NotSupportedError') {
+        errorMessage += 'Camera not supported on this device/browser.';
+      } else {
+        errorMessage += err.message || 'Unknown camera error';
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -265,6 +299,13 @@ function App() {
     <div className="tab-content">
       <h2>Live Color Filters</h2>
       
+      {!window.location.protocol.includes('https') && window.location.hostname !== 'localhost' && (
+        <div className="camera-warning">
+          <p>⚠️ <strong>Camera requires HTTPS</strong></p>
+          <p>Camera access may not work on HTTP. For full functionality, access via HTTPS.</p>
+        </div>
+      )}
+      
       <div className="camera-container">
         <video 
           ref={setVideoRef}
@@ -276,12 +317,20 @@ function App() {
         />
         {cameraPermission === null && (
           <div className="camera-overlay">
+            <p>Camera access is needed for live CVD filters</p>
             <button onClick={startCamera}>📷 Start Camera</button>
+            <small>Grant camera permission when prompted</small>
           </div>
         )}
         {cameraPermission === false && (
           <div className="camera-overlay">
-            <p>Camera access denied. Please enable camera permissions.</p>
+            <p>❌ Camera access denied</p>
+            <p>To use live filters:</p>
+            <ol>
+              <li>Click "Try Again"</li>
+              <li>Allow camera access when prompted</li>
+              <li>Or check browser settings</li>
+            </ol>
             <button onClick={startCamera}>Try Again</button>
           </div>
         )}
