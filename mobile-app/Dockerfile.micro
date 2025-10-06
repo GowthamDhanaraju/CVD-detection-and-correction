@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Copy package files
 COPY package.micro.json package.json
-COPY vite.config.ts tsconfig.json ./
+COPY vite.config.ts tsconfig.json tsconfig.node.json ./
 
 # Install dependencies
 RUN npm install
