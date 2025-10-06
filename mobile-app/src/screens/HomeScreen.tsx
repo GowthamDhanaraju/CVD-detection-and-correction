@@ -30,14 +30,15 @@ type HomeScreenNavigationProp = CompositeNavigationProp<
   StackNavigationProp<RootStackParamList>
 >;
 
-// Theme colors used in the UI — new palette (colorblind-friendly, high contrast)
+// Enhanced theme colors with improved contrast and accessibility
 const Colors = {
-  primary: '#0B6EFF',     // vivid blue
-  accent: '#FF8C42',      // warm orange for accents
-  secondary: '#28C3C9',   // teal for complementary actions
-  background: '#F4F7FA',  // very light neutral
+  primary: '#0052CC',     // deeper blue for better visibility
+  accent: '#FF7A1F',      // brighter orange for enhanced contrast
+  secondary: '#00B3B3',   // adjusted teal for better distinction
+  background: '#F0F4F8',  // subtle cool undertone
   card: '#FFFFFF',
-  text: '#1F2937',        // dark slate
+  textPrimary: '#1A2433', // darker slate for better readability
+  textSecondary: '#4A5568' // secondary text color
 };
 
 const HomeScreen: React.FC = () => {
@@ -265,31 +266,40 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: Colors.primary,
-    padding: 16,
-    borderRadius: 12,
+    padding: 18,
+    borderRadius: 16,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   primaryButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
+    letterSpacing: 0.5,
   },
   secondaryActions: {
-    gap: 12,
+    gap: 16,
   },
   secondaryButton: {
     backgroundColor: 'white',
-    padding: 14,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 14,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.secondary,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   secondaryButtonText: {
-    color: Colors.primary,
+    color: Colors.textPrimary,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   infoSection: {
     backgroundColor: 'white',
@@ -317,20 +327,26 @@ const styles = StyleSheet.create({
   /* Enhanced header styles */
   headerContainer: {
     backgroundColor: Colors.primary,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    marginBottom: 24,
   },
   header: {
-    padding: 20,
-    paddingTop: 36,
+    padding: 24,
+    paddingTop: 40,
     alignItems: 'center',
     position: 'relative',
+    overflow: 'hidden',
   },
   headerContent: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 8,
   },
   headerTextWrap: {
     alignItems: 'center',
+    gap: 8,
   },
   decorCircle1: {
     position: 'absolute',
