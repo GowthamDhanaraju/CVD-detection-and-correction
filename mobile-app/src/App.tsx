@@ -69,7 +69,7 @@ function App() {
       const response = await fetch('/api/test/questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ test_type: 'ishihara', num_questions: 10 }),
+        body: JSON.stringify({ test_type: 'ishihara', num_questions: 3 }),
       });
       
       if (response.ok) {

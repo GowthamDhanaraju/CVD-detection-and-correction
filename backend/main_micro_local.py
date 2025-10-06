@@ -57,11 +57,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global test session tracking
-test_sessions = {}
-import uuid
-import random
-
 # Pydantic models
 class HealthCheck(BaseModel):
     status: str
@@ -117,16 +112,6 @@ def get_dalton_lens_utils():
 # Health check endpoint
 @app.get("/health", response_model=HealthCheck)
 async def health_check():
-    return HealthCheck(
-        status="healthy",
-        timestamp=datetime.now().isoformat(),
-        version="1.0.0-micro",
-        mode="micro" if MICRO_MODE else "full"
-    )
-
-# API Health check endpoint (for frontend compatibility)
-@app.get("/api/health", response_model=HealthCheck)
-async def api_health_check():
     return HealthCheck(
         status="healthy",
         timestamp=datetime.now().isoformat(),
@@ -206,139 +191,6 @@ async def cvd_test(test_data: dict):
     except Exception as e:
         logger.error(f"Error in CVD test: {e}")
         raise HTTPException(status_code=500, detail="Failed to process test")
-
-# Generate test questions
-@app.post("/test/questions")
-async def generate_test_questions(request: dict):
-    try:
-        test_type = request.get("test_type", "ishihara")
-        num_questions = request.get("num_questions", 3)
-        
-        # Generate a unique test ID
-        test_id = str(uuid.uuid4())
-        
-        # Create simple test questions with placeholder images
-        questions = []
-        for i in range(num_questions):
-            question_id = str(uuid.uuid4())
-            # For micro mode, we'll use simple colored rectangles as test images
-            original_color = random.choice(["red", "green", "blue", "yellow", "purple"])
-            filtered_color = random.choice(["red", "green", "blue", "yellow", "purple"])
-            
-            questions.append({
-                "question_id": question_id,
-                "image_original": f"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><rect width='200' height='200' fill='{original_color}'/><text x='100' y='100' text-anchor='middle' dy='.3em' font-size='24' fill='white'>{i+1}</text></svg>",
-                "image_filtered": f"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><rect width='200' height='200' fill='{filtered_color}'/><text x='100' y='100' text-anchor='middle' dy='.3em' font-size='24' fill='white'>{i+1}</text></svg>",
-                "correct_answer": original_color == filtered_color
-            })
-        
-        # Store test session
-        test_sessions[test_id] = {
-            "test_type": test_type,
-            "questions": questions,
-            "responses": {},
-            "created_at": datetime.now().isoformat()
-        }
-        
-        return {
-            "test_id": test_id,
-            "test_type": test_type,
-            "questions": questions
-        }
-        
-    except Exception as e:
-        logger.error(f"Error generating test questions: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate test questions")
-
-# Submit test response
-@app.post("/test/response")
-async def submit_test_response(request: dict):
-    try:
-        test_id = request.get("test_id")
-        question_id = request.get("question_id")
-        response = request.get("response")
-        
-        if test_id not in test_sessions:
-            raise HTTPException(status_code=404, detail="Test session not found")
-        
-        # Store the response
-        test_sessions[test_id]["responses"][question_id] = response
-        
-        return {"status": "success", "message": "Response recorded"}
-        
-    except Exception as e:
-        logger.error(f"Error submitting response: {e}")
-        raise HTTPException(status_code=500, detail="Failed to submit response")
-
-# Complete test and get results
-@app.post("/test/complete")
-async def complete_test(request: dict):
-    try:
-        test_id = request.get("test_id")
-        
-        if test_id not in test_sessions:
-            raise HTTPException(status_code=404, detail="Test session not found")
-        
-        session = test_sessions[test_id]
-        questions = session["questions"]
-        responses = session["responses"]
-        
-        # Calculate results
-        correct_count = 0
-        total_questions = len(questions)
-        
-        for question in questions:
-            question_id = question["question_id"]
-            if question_id in responses:
-                user_response = responses[question_id]
-                correct_answer = question["correct_answer"]
-                if user_response == correct_answer:
-                    correct_count += 1
-        
-        # Calculate severity scores (simplified)
-        accuracy = correct_count / total_questions if total_questions > 0 else 0
-        severity_score = 1.0 - accuracy  # Higher score means more difficulty
-        
-        # Determine overall severity
-        if severity_score < 0.3:
-            overall_severity = "normal"
-        elif severity_score < 0.6:
-            overall_severity = "mild"
-        else:
-            overall_severity = "moderate"
-        
-        results = {
-            "overall_severity": overall_severity,
-            "protanopia_severity": severity_score,
-            "deuteranopia_severity": severity_score * 0.8,
-            "tritanopia_severity": severity_score * 0.6,
-            "timestamp": datetime.now().isoformat(),
-            "score": accuracy * 100,
-            "correct_answers": correct_count,
-            "total_questions": total_questions
-        }
-        
-        # Clean up test session
-        del test_sessions[test_id]
-        
-        return results
-        
-    except Exception as e:
-        logger.error(f"Error completing test: {e}")
-        raise HTTPException(status_code=500, detail="Failed to complete test")
-
-# API versions of test endpoints for frontend compatibility
-@app.post("/api/test/questions")
-async def api_generate_test_questions(request: dict):
-    return await generate_test_questions(request)
-
-@app.post("/api/test/response")
-async def api_submit_test_response(request: dict):
-    return await submit_test_response(request)
-
-@app.post("/api/test/complete")
-async def api_complete_test(request: dict):
-    return await complete_test(request)
 
 # Image upload and processing
 @app.post("/upload")
@@ -441,7 +293,7 @@ async def get_analytics():
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8001))
     uvicorn.run(
-        app,
+        "main:app",
         host="0.0.0.0",
         port=port,
         workers=1,
